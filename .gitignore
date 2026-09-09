@@ -21,3 +21,6 @@ release/
 # --- IDE ---
 .idea/
 .DS_Store
+
+# Claude Code local (personal, not shared)
+.claude/settings.local.json
