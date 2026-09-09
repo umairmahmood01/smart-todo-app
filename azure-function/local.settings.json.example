@@ -4,7 +4,9 @@
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "node",
     "FUNCTIONS_EXTENSION_VERSION": "~4",
-    "ANTHROPIC_API_KEY": "sk-ant-REPLACE-ME",
+    "LLM_API_KEY": "REPLACE-WITH-DEEPINFRA-API-KEY",
+    "LLM_BASE_URL": "https://api.deepinfra.com/v1/openai",
+    "LLM_MODEL": "anthropic/claude-haiku-4-5",
     "ENRICH_RATE_LIMIT_PER_MINUTE": "30",
     "ENRICH_GLOBAL_RATE_LIMIT_PER_MINUTE": "300"
   }

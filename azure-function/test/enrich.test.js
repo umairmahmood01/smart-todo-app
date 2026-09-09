@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { API_KEY_SETTING } from '../src/lib/claude.js';
+import { API_KEY_SETTING } from '../src/lib/llm.js';
 
 // The handler module reads its limits and configuration once, at import time,
 // so both are set before the dynamic import below.

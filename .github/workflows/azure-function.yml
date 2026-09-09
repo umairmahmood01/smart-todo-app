@@ -33,7 +33,7 @@ jobs:
       - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: npm
           cache-dependency-path: azure-function/package-lock.json
 
@@ -43,8 +43,8 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # No test touches the network or needs an API key; the Anthropic client
-      # is stubbed, so nothing here can incur model spend.
+      # No test touches the network or needs an API key; the OpenAI-compatible
+      # client is stubbed, so nothing here can incur model spend.
       - name: Unit tests
         run: npm test
 
@@ -69,7 +69,7 @@ jobs:
   #     - name: Set up Node.js 20
   #       uses: actions/setup-node@v4
   #       with:
-  #         node-version: '20'
+  #         node-version: '24'
   #         cache: npm
   #         cache-dependency-path: azure-function/package-lock.json
   #

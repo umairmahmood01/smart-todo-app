@@ -1,5 +1,5 @@
 import { app } from '@azure/functions';
-import { API_KEY_SETTING, ConfigError, enrichTask, getClient, isConfigured } from '../lib/claude.js';
+import { API_KEY_SETTING, ConfigError, enrichTask, getClient, isConfigured } from '../lib/llm.js';
 import { SlidingWindowRateLimiter, clientKeyFromHeaders } from '../lib/rateLimit.js';
 import { validateEnrichRequest } from '../lib/validate.js';
 

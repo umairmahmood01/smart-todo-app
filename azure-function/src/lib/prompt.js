@@ -1,13 +1,5 @@
 import { CATEGORIES } from './categories.js';
 
-/**
- * Haiku is used deliberately: this is a short translate-and-classify task
- * with a tiny output, so the cheapest and fastest model in the family is the
- * correct trade-off. Pinned to a dated snapshot so behaviour cannot drift
- * under the app's frozen contract.
- */
-export const MODEL = 'claude-haiku-4-5-20251001';
-
 /** Structured output is at most a few dozen tokens; 256 leaves ample slack. */
 export const MAX_TOKENS = 256;
 
@@ -56,42 +48,61 @@ export const SYSTEM_PROMPT = [
   'confidence: your certainty in the chosen category, from 0.0 to 1.0. Use a',
   'low value when the item is ambiguous or could sit in several categories.',
   '',
-  'Always answer by calling the ' + TOOL_NAME + ' tool. Never reply with prose.',
+  'Always answer by calling the ' + TOOL_NAME + ' function. Never reply with',
+  'prose. If you cannot call a function, reply with the function arguments as',
+  'a bare JSON object and nothing else.',
 ].join('\n');
 
 /**
- * Tool schema that forces structured output. The category enum is the same
- * closed set the response is later validated against, so the model cannot
- * invent a category the app does not know.
+ * JSON Schema for the tool arguments. The category enum is the same closed
+ * set the response is later validated against, so the model cannot invent a
+ * category the app does not know.
+ */
+const PARAMETERS = {
+  type: 'object',
+  properties: {
+    englishText: {
+      type: 'string',
+      description:
+        'The to-do item as one natural plain-English imperative sentence, ' +
+        'with no added detail and no commentary.',
+    },
+    category: {
+      type: 'string',
+      enum: [...CATEGORIES],
+      description: 'The single best-fitting category from the fixed list.',
+    },
+    confidence: {
+      type: 'number',
+      description: 'Certainty in the chosen category, between 0.0 and 1.0.',
+    },
+  },
+  required: ['englishText', 'category', 'confidence'],
+  additionalProperties: false,
+};
+
+/**
+ * Tool definition in the OpenAI chat-completions shape.
+ *
+ * "strict" asks endpoints that support constrained decoding to guarantee the
+ * schema. It is a best-effort hint only: not every model behind an
+ * OpenAI-compatible host honours it, so the validation and category coercion
+ * applied to the parsed arguments remain the real guarantee.
  */
 export const ENRICH_TOOL = Object.freeze({
-  name: TOOL_NAME,
-  description:
-    'Record the English rendering and the category of the user to-do item. ' +
-    'This is the only permitted way to answer.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      englishText: {
-        type: 'string',
-        description:
-          'The to-do item as one natural plain-English imperative sentence, ' +
-          'with no added detail and no commentary.',
-      },
-      category: {
-        type: 'string',
-        enum: [...CATEGORIES],
-        description: 'The single best-fitting category from the fixed list.',
-      },
-      confidence: {
-        type: 'number',
-        description: 'Certainty in the chosen category, between 0.0 and 1.0.',
-      },
-    },
-    required: ['englishText', 'category', 'confidence'],
-    additionalProperties: false,
+  type: 'function',
+  function: {
+    name: TOOL_NAME,
+    description:
+      'Record the English rendering and the category of the user to-do item. ' +
+      'This is the only permitted way to answer.',
+    strict: true,
+    parameters: PARAMETERS,
   },
 });
 
 /** Forces the model to emit a call to {@link ENRICH_TOOL} rather than prose. */
-export const TOOL_CHOICE = Object.freeze({ type: 'tool', name: TOOL_NAME });
+export const TOOL_CHOICE = Object.freeze({
+  type: 'function',
+  function: { name: TOOL_NAME },
+});
