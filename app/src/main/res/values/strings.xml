@@ -1,4 +1,69 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Smart Todo</string>
+
+    <!-- Header -->
+    <string name="profile_name">Umair</string>
+    <string name="greeting_morning">👋 Good morning, %1$s</string>
+    <string name="greeting_afternoon">👋 Good afternoon, %1$s</string>
+    <string name="greeting_evening">👋 Good evening, %1$s</string>
+    <string name="tagline">Productivity is the key to success. 🔑</string>
+    <string name="avatar_emoji">😎</string>
+    <string name="cd_avatar">Your profile</string>
+
+    <!-- Progress card -->
+    <string name="progress_headline">You\'ve completed %1$d out of %2$d tasks.</string>
+    <string name="progress_percent">%1$d%%</string>
+    <string name="progress_sub_empty">Add your first task to get going.</string>
+    <string name="progress_sub_starting">You\'re just getting started.</string>
+    <string name="progress_sub_halfway">Nice pace — keep the streak alive.</string>
+    <string name="progress_sub_almost">Almost there. Finish strong.</string>
+    <string name="progress_sub_complete">All done. Enjoy the rest of your day.</string>
+    <string name="cd_progress_ring">%1$d percent of tasks completed</string>
+
+    <!-- Status tracker -->
+    <string name="status_todo_short">To-Do</string>
+    <string name="status_in_progress_short">Progress</string>
+    <string name="status_done_short">Done</string>
+    <string name="status_todo">To Do</string>
+    <string name="status_in_progress">In Progress</string>
+    <string name="status_done">Done</string>
+    <string name="count_in_parens">(%1$d)</string>
+    <string name="cd_filter_by_status">Filter by %1$s</string>
+    <string name="cd_filter_by_category">Filter by %1$s</string>
+
+    <!-- Search -->
+    <string name="search_placeholder">Search for task…</string>
+    <string name="cd_search">Search</string>
+    <string name="cd_clear_search">Clear search</string>
+
+    <!-- Task list -->
+    <string name="section_your_tasks">Your tasks</string>
+    <string name="sort_newest_first">Newest first</string>
+    <string name="sort_oldest_first">Oldest first</string>
+    <string name="task_pinned">📌 Pinned</string>
+    <string name="task_due">Due %1$s</string>
+    <string name="task_added">Added %1$s</string>
+    <string name="cd_task_options">Task options</string>
+    <string name="action_mark_as">Mark as %1$s</string>
+    <string name="action_pin">Pin task</string>
+    <string name="action_unpin">Unpin task</string>
+    <string name="action_delete">Delete task</string>
+
+    <!-- Add task sheet -->
+    <string name="cd_add_task">Add a task</string>
+    <string name="add_task_title">New task</string>
+    <string name="add_task_placeholder">What needs doing?</string>
+    <string name="add_task_hint">Write it in any language — the category is chosen for you.</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+
+    <!-- Empty states -->
+    <string name="empty_title">No tasks yet</string>
+    <string name="empty_body">Tap + and type anything. Smart Todo files it under the right category for you.</string>
+    <string name="empty_emoji">🗒️</string>
+    <string name="empty_filtered_title">Nothing matches</string>
+    <string name="empty_filtered_body">No tasks match your current search and filters.</string>
+    <string name="empty_filtered_emoji">🔍</string>
+    <string name="action_clear_filters">Clear filters</string>
 </resources>
