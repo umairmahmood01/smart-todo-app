@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import com.umair.smarttodo.domain.Category
 import com.umair.smarttodo.domain.TaskStatus
 import kotlinx.coroutines.flow.Flow
 
@@ -88,6 +89,31 @@ interface TaskDao {
     /** Pins or unpins a single row. No-op when [id] does not exist. */
     @Query("UPDATE tasks SET isPinned = :pinned WHERE id = :id")
     suspend fun setPinned(id: Long, pinned: Boolean)
+
+    /** Reads a single row once, or `null` when [id] does not exist. */
+    @Query("SELECT * FROM tasks WHERE id = :id")
+    suspend fun getById(id: Long): TaskEntity?
+
+    /**
+     * Writes the outcome of remote enrichment onto an existing row.
+     *
+     * Only the two columns the enrichment layer owns are touched, so a status change, a pin
+     * or a deletion racing with a background enrichment cannot be clobbered by a stale
+     * whole-row `@Update`.
+     *
+     * @return the number of rows changed: `1` normally, `0` when the task was deleted while
+     *   the network call was in flight. Callers use that to distinguish "applied" from
+     *   "nothing left to apply" instead of guessing.
+     */
+    @Query(
+        """
+        UPDATE tasks
+        SET normalizedEnglishText = :normalizedEnglishText,
+            category = :category
+        WHERE id = :id
+        """
+    )
+    suspend fun applyEnrichment(id: Long, normalizedEnglishText: String, category: Category): Int
 
     /** Deletes a single row. No-op when [id] does not exist. */
     @Query("DELETE FROM tasks WHERE id = :id")

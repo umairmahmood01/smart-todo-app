@@ -2,6 +2,7 @@ package com.umair.smarttodo.data.repository
 
 import com.umair.smarttodo.data.local.TaskDao
 import com.umair.smarttodo.data.local.TaskEntity
+import com.umair.smarttodo.domain.Category
 import com.umair.smarttodo.domain.TaskStatus
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +36,13 @@ class FakeTaskDao : TaskDao {
         private set
 
     val inserted: MutableList<TaskEntity> = mutableListOf()
+
+    /** How many times [applyEnrichment] was called, including calls that matched no row. */
+    var applyEnrichmentCount: Int = 0
+        private set
+
+    /** Current contents of the fake table. */
+    val currentRows: List<TaskEntity> get() = rows.value
 
     private var nextId = 1L
 
@@ -76,6 +84,26 @@ class FakeTaskDao : TaskDao {
 
     override suspend fun setPinned(id: Long, pinned: Boolean) {
         rows.value = rows.value.map { if (it.id == id) it.copy(isPinned = pinned) else it }
+    }
+
+    override suspend fun getById(id: Long): TaskEntity? = rows.value.firstOrNull { it.id == id }
+
+    override suspend fun applyEnrichment(
+        id: Long,
+        normalizedEnglishText: String,
+        category: Category,
+    ): Int {
+        applyEnrichmentCount++
+        var updated = 0
+        rows.value = rows.value.map { row ->
+            if (row.id == id) {
+                updated++
+                row.copy(normalizedEnglishText = normalizedEnglishText, category = category)
+            } else {
+                row
+            }
+        }
+        return updated
     }
 
     override suspend fun deleteById(id: Long) {

@@ -1,5 +1,6 @@
 package com.umair.smarttodo.data.repository
 
+import com.umair.smarttodo.data.enrichment.EnrichmentScheduler
 import com.umair.smarttodo.data.local.TaskDao
 import com.umair.smarttodo.data.local.TaskEntity
 import com.umair.smarttodo.data.local.toDomain
@@ -21,11 +22,13 @@ import kotlinx.coroutines.withContext
 /**
  * Room-backed [TaskRepository]: the single source of truth for tasks.
  *
- * The local database is authoritative. There is no remote source yet, so every read is a
- * `Flow` off [TaskDao] and every write is a suspending call on [ioDispatcher].
+ * The local database is authoritative and always writable offline. The remote enrichment
+ * service never sits on a read or a write path: it is scheduled *after* a successful insert
+ * and edits the row later, at which point the existing `Flow` refreshes the UI on its own.
  *
  * @param dao data access for the `tasks` table.
- * @param categorizer assigns a [Category] to freshly captured text.
+ * @param categorizer assigns a [Category] to freshly captured text, offline and instantly.
+ * @param enrichmentScheduler queues the optional background refinement of a new task.
  * @param ioDispatcher injected rather than hardcoded to `Dispatchers.IO` so that tests can
  *   substitute a `TestDispatcher` and drive execution deterministically.
  */
@@ -33,6 +36,7 @@ import kotlinx.coroutines.withContext
 class TaskRepositoryImpl @Inject constructor(
     private val dao: TaskDao,
     private val categorizer: TaskCategorizer,
+    private val enrichmentScheduler: EnrichmentScheduler,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : TaskRepository {
 
@@ -66,7 +70,13 @@ class TaskRepositoryImpl @Inject constructor(
     /**
      * Categorises [rawText] and stores it as a new [TaskStatus.TODO] task created "now".
      *
-     * `normalizedEnglishText` is left `null`; the enrichment layer fills it in later.
+     * Two layers, in order:
+     * 1. The offline rule-based [categorizer] assigns a category synchronously. No network,
+     *    no waiting, no spinner - this call returns as soon as the row is written.
+     * 2. Background enrichment is *queued* (never awaited) to refine that category and fill
+     *    `normalizedEnglishText`. With no connectivity, no configuration, or a service
+     *    outage, step two simply never lands and the task stays exactly as step one left it.
+     *
      * Blank input is ignored rather than persisted as an empty row.
      */
     override suspend fun addTask(rawText: String) {
@@ -81,7 +91,8 @@ class TaskRepositoryImpl @Inject constructor(
             createdDate = System.currentTimeMillis(),
             dueDate = null,
         )
-        withContext(ioDispatcher) { dao.insert(entity) }
+        val id = withContext(ioDispatcher) { dao.insert(entity) }
+        enrichmentScheduler.scheduleEnrichment(taskId = id, rawText = text)
     }
 
     override suspend fun updateStatus(id: Long, status: TaskStatus) {
