@@ -1,0 +1,470 @@
+<title>Smart Todo Mockup</title>
+<style>
+  .stm-page * { box-sizing: border-box; margin: 0; padding: 0; }
+  .stm-page {
+    background: radial-gradient(1200px 700px at 50% -10%, #F3F1FC 0%, #EBEBF5 55%, #E3E2F0 100%);
+    min-height: 100vh;
+    padding: 48px 16px 64px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .stm-caption { text-align: center; margin-bottom: 30px; color: #4A4770; }
+  .stm-caption h1 { font-size: 19px; font-weight: 700; letter-spacing: -0.2px; }
+  .stm-caption p { font-size: 13px; color: #7B78A3; margin-top: 6px; }
+
+  .stm-phone {
+    position: relative;
+    width: 392px;
+    height: 830px;
+    background: linear-gradient(160deg, #2B2A3F 0%, #101021 45%, #232238 100%);
+    border-radius: 56px;
+    padding: 11px;
+    box-shadow:
+      0 2px 0 rgba(255,255,255,0.35) inset,
+      0 42px 80px -18px rgba(32,25,74,0.55),
+      0 18px 40px -20px rgba(32,25,74,0.45),
+      0 0 0 2px rgba(255,255,255,0.30);
+  }
+  .stm-screen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 46px;
+    overflow: hidden;
+    background: #14132B;
+    display: flex;
+    flex-direction: column;
+  }
+  .stm-screen::before {
+    content: "";
+    position: absolute;
+    top: -160px; left: -60px;
+    width: 420px; height: 340px;
+    background: radial-gradient(circle at 30% 30%, rgba(168,85,247,0.28), rgba(168,85,247,0) 65%);
+    pointer-events: none;
+  }
+  .stm-screen::after {
+    content: "";
+    position: absolute;
+    bottom: -140px; right: -100px;
+    width: 380px; height: 320px;
+    background: radial-gradient(circle at 60% 60%, rgba(96,79,214,0.22), rgba(96,79,214,0) 68%);
+    pointer-events: none;
+  }
+  .stm-island {
+    position: absolute;
+    top: 11px; left: 50%; transform: translateX(-50%);
+    width: 116px; height: 33px;
+    background: #08080F;
+    border-radius: 20px;
+    z-index: 40;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.05);
+  }
+  .stm-island .cam {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    width: 11px; height: 11px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #2A2B4A 0%, #101026 60%, #05050C 100%);
+    box-shadow: 0 0 0 1px rgba(120,110,190,0.22);
+  }
+
+  .stm-status {
+    position: relative; z-index: 30;
+    height: 55px;
+    padding: 0 26px;
+    display: flex; align-items: center; justify-content: space-between;
+    color: #FFFFFF;
+    flex: none;
+  }
+  .stm-status .time {
+    font-size: 14.5px; font-weight: 700; letter-spacing: 0.2px;
+    display: flex; align-items: center; gap: 6px;
+    opacity: 0.95;
+  }
+  .stm-status .icons { display: flex; align-items: center; gap: 6px; opacity: 0.92; }
+
+  .stm-body {
+    position: relative; z-index: 20;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 6px 20px 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .stm-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+  .stm-greet { font-size: 22px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.4px; line-height: 1.2; }
+  .stm-tagline { margin-top: 6px; font-size: 12.5px; font-style: italic; color: #A5A3C4; letter-spacing: 0.1px; }
+  .stm-avatar {
+    flex: none;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: linear-gradient(150deg, #7C3AED 0%, #A020F0 50%, #C084FC 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 0 0 2px #14132B, 0 0 0 4px rgba(168,85,247,0.55), 0 6px 16px -4px rgba(168,85,247,0.6);
+  }
+
+  .stm-progress {
+    background: linear-gradient(140deg, #262551 0%, #232244 55%, #1F1E3C 100%);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 20px;
+    padding: 16px 18px;
+    display: flex; align-items: center; gap: 16px;
+    box-shadow: 0 12px 26px -14px rgba(0,0,0,0.85);
+    margin-bottom: 16px;
+  }
+  .stm-ring { position: relative; width: 62px; height: 62px; flex: none; }
+  .stm-ring .pct {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.2px;
+  }
+  .stm-progress .p-main { font-size: 14.5px; font-weight: 700; color: #FFFFFF; line-height: 1.35; letter-spacing: -0.1px; }
+  .stm-progress .p-sub  { margin-top: 5px; font-size: 12px; color: #A5A3C4; }
+
+  .stm-tracker { display: flex; gap: 9px; margin-bottom: 16px; }
+  .stm-seg {
+    flex: 1;
+    background: #1E1D3A;
+    border: 1px solid rgba(255,255,255,0.055);
+    border-left-width: 3px;
+    border-left-style: solid;
+    border-radius: 12px;
+    padding: 9px 8px 9px 10px;
+    display: flex; align-items: center; gap: 7px;
+    box-shadow: 0 6px 14px -10px rgba(0,0,0,0.9);
+  }
+  .stm-seg .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .stm-seg .lbl { font-size: 11px; font-weight: 600; color: #FFFFFF; white-space: nowrap; letter-spacing: -0.1px; }
+  .stm-seg .lbl span { color: #A5A3C4; font-weight: 600; }
+  .stm-seg.todo { border-left-color: #F44336; }
+  .stm-seg.prog { border-left-color: #FFC107; }
+  .stm-seg.done { border-left-color: #4CAF50; }
+  .stm-seg.todo .dot { background: #F44336; box-shadow: 0 0 8px rgba(244,67,54,0.75); }
+  .stm-seg.prog .dot { background: #FFC107; box-shadow: 0 0 8px rgba(255,193,7,0.75); }
+  .stm-seg.done .dot { background: #4CAF50; box-shadow: 0 0 8px rgba(76,175,80,0.75); }
+
+  .stm-search {
+    display: flex; align-items: center; gap: 10px;
+    background: #1E1D3A;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 999px;
+    height: 46px;
+    padding: 0 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 8px 18px -12px rgba(0,0,0,0.9);
+  }
+  .stm-search .ph { font-size: 13.5px; color: #6F6D93; }
+
+  .stm-chips-wrap { margin: 0 -20px 18px; padding: 0 20px; overflow: hidden; }
+  .stm-chips { display: flex; gap: 7px; width: max-content; }
+  .stm-chip {
+    display: flex; align-items: center; gap: 7px;
+    height: 34px; padding: 0 11px;
+    border-radius: 999px;
+    font-size: 11px; font-weight: 700; color: #FFFFFF;
+    white-space: nowrap;
+    box-shadow: 0 8px 18px -12px rgba(0,0,0,0.95);
+  }
+  .stm-chip .n { opacity: 0.75; font-weight: 600; font-size: 10px; }
+  .stm-chip.c1 { background: linear-gradient(135deg, #7A28C9 0%, #5B1CA8 100%); }
+  .stm-chip.c2 { background: linear-gradient(135deg, #3B4BD8 0%, #2A3399 100%); }
+  .stm-chip.c3 { background: linear-gradient(135deg, #F0A32A 0%, #D97A0C 100%); color: #2A1A02; padding: 0 10px; }
+  .stm-chip.c3 .n { opacity: 0.65; }
+  .stm-chip.c4 { background: linear-gradient(135deg, #1FA88A 0%, #157A66 100%); }
+
+  .stm-sechead {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .stm-sechead .h { font-size: 16px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.2px; }
+  .stm-sechead .a { font-size: 12px; font-weight: 600; color: #A855F7; }
+
+  /* clipped viewport: the list runs to the bottom edge of the screen */
+  .stm-tasks-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    margin: 0 -6px;
+    padding: 0 6px;
+  }
+  .stm-tasks { display: flex; flex-direction: column; gap: 14px; }
+  .stm-card.b { min-height: 215px; }
+  .stm-card {
+    position: relative;
+    background: linear-gradient(145deg, #A020F0 0%, #9526E4 45%, #8B1FD9 100%);
+    border-radius: 22px;
+    padding: 14px 16px;
+    box-shadow: 0 18px 34px -18px rgba(160,32,240,0.85), 0 6px 14px -8px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  .stm-card::after {
+    content: "";
+    position: absolute; top: -60px; right: -40px;
+    width: 180px; height: 160px;
+    background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.16), rgba(255,255,255,0) 70%);
+    pointer-events: none;
+  }
+  .stm-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .stm-pinned {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(255,255,255,0.22);
+    border: 1px solid rgba(255,255,255,0.20);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 10.5px; font-weight: 700; color: #FFFFFF; letter-spacing: 0.2px;
+    margin-bottom: 8px;
+  }
+  .stm-date { font-size: 11px; color: rgba(255,255,255,0.72); font-weight: 600; white-space: nowrap; padding-top: 2px; margin-right: 16px; }
+  .stm-title { font-size: 19px; font-weight: 800; color: #FFFFFF; line-height: 1.22; letter-spacing: -0.3px; max-width: 152px; }
+  .stm-card-body { display: flex; gap: 12px; margin-top: 12px; }
+  .stm-tile {
+    flex: none;
+    width: 46px; height: 46px; border-radius: 14px;
+    background: rgba(255,255,255,0.20);
+    border: 1px solid rgba(255,255,255,0.22);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .stm-desc { font-size: 12.5px; line-height: 1.5; color: rgba(255,255,255,0.94); }
+  .stm-yt {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: #F0242B; color: #FFFFFF;
+    border-radius: 6px; padding: 2px 7px 2px 6px;
+    font-size: 10.5px; font-weight: 700;
+    vertical-align: middle; margin-left: 5px;
+    box-shadow: 0 3px 8px -3px rgba(0,0,0,0.5);
+  }
+  .stm-shared { margin-top: 7px; font-size: 11.5px; color: rgba(255,255,255,0.75); display: flex; align-items: center; gap: 5px; }
+  .stm-meta { margin-top: 7px; font-size: 11.5px; color: rgba(255,255,255,0.82); display: flex; align-items: center; gap: 6px; }
+  .stm-tagrow { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .stm-tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(255,255,255,0.20);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 999px;
+    padding: 5px 11px;
+    font-size: 11px; font-weight: 600; color: #FFFFFF;
+  }
+  .stm-dots {
+    position: absolute; top: 16px; right: 14px;
+    display: flex; flex-direction: column; gap: 3.5px; align-items: center;
+    z-index: 3;
+  }
+  .stm-dots i { display: block; width: 3.5px; height: 3.5px; border-radius: 50%; background: rgba(255,255,255,0.85); }
+
+  .stm-fade {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 96px;
+    background: linear-gradient(to bottom, rgba(20,19,43,0) 0%, rgba(20,19,43,0.72) 55%, #14132B 100%);
+    z-index: 25; pointer-events: none;
+  }
+
+  .stm-fab {
+    position: absolute; right: 22px; bottom: 34px; z-index: 32;
+    width: 60px; height: 60px; border-radius: 50%;
+    background: linear-gradient(145deg, #B45BFF 0%, #A855F7 45%, #8B1FD9 100%);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow:
+      0 0 0 6px rgba(168,85,247,0.14),
+      0 14px 30px -6px rgba(168,85,247,0.75),
+      0 6px 14px -4px rgba(0,0,0,0.55);
+  }
+
+  .stm-home {
+    position: absolute; bottom: 9px; left: 50%; transform: translateX(-50%);
+    width: 134px; height: 5px; border-radius: 999px;
+    background: rgba(255,255,255,0.55);
+    z-index: 33;
+  }
+</style>
+
+<div class="stm-page">
+
+  <div class="stm-caption">
+    <h1>Smart Todo &mdash; Main Screen</h1>
+    <p>Visual approval mockup &middot; dark theme &middot; 392 &times; 830</p>
+  </div>
+
+  <div class="stm-phone">
+    <div class="stm-screen">
+      <div class="stm-island"><span class="cam"></span></div>
+
+      <!-- 1. STATUS BAR -->
+      <div class="stm-status">
+        <div class="time">
+          20:44
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M21 14.2A9 9 0 1 1 9.8 3a7.2 7.2 0 0 0 11.2 11.2Z" fill="#FFFFFF" opacity="0.9"/>
+          </svg>
+        </div>
+        <div class="icons">
+          <svg width="17" height="12" viewBox="0 0 17 12" aria-hidden="true">
+            <rect x="0" y="8" width="3" height="4" rx="1" fill="#FFFFFF"/>
+            <rect x="4.5" y="5.5" width="3" height="6.5" rx="1" fill="#FFFFFF"/>
+            <rect x="9" y="3" width="3" height="9" rx="1" fill="#FFFFFF"/>
+            <rect x="13.5" y="0.5" width="3" height="11.5" rx="1" fill="#FFFFFF" opacity="0.42"/>
+          </svg>
+          <svg width="16" height="12" viewBox="0 0 16 12" fill="none" aria-hidden="true">
+            <path d="M1 4.1A11 11 0 0 1 15 4.1" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M3.6 6.9a7.2 7.2 0 0 1 8.8 0" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round"/>
+            <circle cx="8" cy="9.8" r="1.5" fill="#FFFFFF"/>
+          </svg>
+          <svg width="26" height="12" viewBox="0 0 26 12" fill="none" aria-hidden="true">
+            <rect x="0.6" y="0.6" width="21.5" height="10.8" rx="3.2" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="1.2"/>
+            <rect x="2.3" y="2.3" width="14" height="7.4" rx="2" fill="#FFFFFF"/>
+            <path d="M24 4.1v3.8a2.1 2.1 0 0 0 0-3.8Z" fill="#FFFFFF" fill-opacity="0.6"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="stm-body">
+
+        <!-- 2. HEADER -->
+        <div class="stm-header">
+          <div>
+            <div class="stm-greet">&#128075; Good evening, Umair</div>
+            <div class="stm-tagline">Productivity is the key to success. &#128273;</div>
+          </div>
+          <div class="stm-avatar">&#128526;</div>
+        </div>
+
+        <!-- 3. PROGRESS CARD -->
+        <div class="stm-progress">
+          <div class="stm-ring">
+            <svg width="62" height="62" viewBox="0 0 62 62" aria-hidden="true">
+              <defs>
+                <linearGradient id="stmRingGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#C084FC"/>
+                  <stop offset="100%" stop-color="#A855F7"/>
+                </linearGradient>
+              </defs>
+              <circle cx="31" cy="31" r="26" fill="none" stroke="#332F5E" stroke-width="7"/>
+              <circle cx="31" cy="31" r="26" fill="none"
+                      stroke="url(#stmRingGrad)" stroke-width="7" stroke-linecap="round"
+                      stroke-dasharray="32.7 163.4"
+                      transform="rotate(-90 31 31)"/>
+            </svg>
+            <div class="pct">20%</div>
+          </div>
+          <div>
+            <div class="p-main">You&rsquo;ve completed 1 out of 5 tasks.</div>
+            <div class="p-sub">You&rsquo;re just getting started.</div>
+          </div>
+        </div>
+
+        <!-- 4. STATUS TRACKER -->
+        <div class="stm-tracker">
+          <div class="stm-seg todo"><span class="dot"></span><span class="lbl">To-Do <span>(3)</span></span></div>
+          <div class="stm-seg prog"><span class="dot"></span><span class="lbl">Progress <span>(1)</span></span></div>
+          <div class="stm-seg done"><span class="dot"></span><span class="lbl">Done <span>(1)</span></span></div>
+        </div>
+
+        <!-- 5. SEARCH -->
+        <div class="stm-search">
+          <svg width="17" height="17" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <circle cx="8.6" cy="8.6" r="6.1" stroke="#6F6D93" stroke-width="1.8"/>
+            <path d="M13.2 13.2 17.4 17.4" stroke="#6F6D93" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          <span class="ph">Search for task...</span>
+        </div>
+
+        <!-- 6. CATEGORY CHIPS -->
+        <div class="stm-chips-wrap">
+          <div class="stm-chips">
+            <div class="stm-chip c1">&#128187; Coding <span class="n">(2)</span></div>
+            <div class="stm-chip c2">&#128188; Work <span class="n">(2)</span></div>
+            <div class="stm-chip c3">&#127939; Health/Fitness <span class="n">(1)</span></div>
+            <div class="stm-chip c4">&#128218; Study <span class="n">(1)</span></div>
+          </div>
+        </div>
+
+        <!-- 7. TASK CARDS -->
+        <div class="stm-sechead">
+          <span class="h">Your tasks</span>
+          <span class="a">See all</span>
+        </div>
+        <div class="stm-tasks-wrap">
+        <div class="stm-tasks">
+
+          <!-- CARD A -->
+          <div class="stm-card a">
+            <div class="stm-dots"><i></i><i></i><i></i></div>
+            <div class="stm-card-top">
+              <div>
+                <span class="stm-pinned">&#128204; Pinned</span>
+                <div class="stm-title">Website Development</div>
+              </div>
+              <div class="stm-date">18.02.2024</div>
+            </div>
+            <div class="stm-card-body">
+              <div class="stm-tile">&#128421;&#65039;</div>
+              <div>
+                <div class="stm-desc">
+                  Create a landing page with React.js for client.
+                  <span class="stm-yt">
+                    <svg width="9" height="9" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 0.8 8.6 5 1.5 9.2Z" fill="#FFFFFF"/></svg>
+                    Youtube
+                  </span>
+                </div>
+                <div class="stm-shared">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M10 13a5 5 0 0 0 7.5.6l2.5-2.5a5 5 0 0 0-7-7l-1.4 1.4" stroke="#FFFFFF" stroke-opacity="0.8" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M14 11a5 5 0 0 0-7.5-.6L4 12.9a5 5 0 0 0 7 7l1.4-1.4" stroke="#FFFFFF" stroke-opacity="0.8" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                  Shared by Umair
+                </div>
+              </div>
+            </div>
+            <div class="stm-tagrow">
+              <span class="stm-tag">&#128187; Coding</span>
+              <span class="stm-tag">&#128188; Work</span>
+            </div>
+          </div>
+
+          <!-- CARD B (clipped at the bottom to imply scrolling) -->
+          <div class="stm-card b">
+            <div class="stm-dots"><i></i><i></i><i></i></div>
+            <div class="stm-card-top">
+              <div class="stm-title">Workout</div>
+              <div class="stm-date">1.12.2024</div>
+            </div>
+            <div class="stm-card-body">
+              <div class="stm-tile">&#128170;</div>
+              <div>
+                <div class="stm-desc">Go to gym</div>
+                <div class="stm-meta">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" stroke="#FFFFFF" stroke-opacity="0.85" stroke-width="2"/>
+                    <path d="M12 7v5.3l3.4 2" stroke="#FFFFFF" stroke-opacity="0.85" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  09:30:00 &middot; Tuesday (today)
+                </div>
+              </div>
+            </div>
+            <div class="stm-tagrow">
+              <span class="stm-tag">&#127939; Health/Fitness</span>
+            </div>
+          </div>
+
+        </div>
+        </div>
+
+      </div>
+
+      <div class="stm-fade"></div>
+
+      <!-- 8. FLOATING ACTION BUTTON -->
+      <div class="stm-fab">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <div class="stm-home"></div>
+    </div>
+  </div>
+
+</div>

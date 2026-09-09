@@ -1,0 +1,23 @@
+# --- Secrets: never commit ---
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+keystore.properties
+local.properties
+
+# --- Android / Gradle ---
+*.iml
+.gradle/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+release/
+*.apk
+*.aab
+
+# --- IDE ---
+.idea/
+.DS_Store
