@@ -24,3 +24,7 @@ release/
 
 # Claude Code local (personal, not shared)
 .claude/settings.local.json
+
+# --- Kotlin / Gradle build scratch (Kotlin 2.x) ---
+.kotlin/
+*.hprof

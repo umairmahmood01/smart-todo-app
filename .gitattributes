@@ -1,0 +1,13 @@
+#
+# https://help.github.com/articles/dealing-with-line-endings/
+#
+# Ensure the Gradle wrapper scripts keep the line endings their interpreters need,
+# regardless of the platform the repository is cloned on.
+#
+* text=auto eol=lf
+
+*.bat           text eol=crlf
+*.jar           binary
+*.png           binary
+*.jpg           binary
+*.webp          binary
