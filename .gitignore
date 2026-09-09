@@ -31,3 +31,8 @@ release/
 
 # CI build output pulled locally
 build-output/
+
+# --- Azure Function (azure-function/) ---
+node_modules/
+local.settings.json
+azure-function/.func/

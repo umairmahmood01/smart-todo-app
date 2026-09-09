@@ -1,0 +1,84 @@
+name: Azure Function CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'azure-function/**'
+      - '.github/workflows/azure-function.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'azure-function/**'
+      - '.github/workflows/azure-function.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: azure-function
+
+jobs:
+  build:
+    name: Lint and unit test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Pinned to the runtime the Function App runs on, not the latest Node.
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: azure-function/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # No test touches the network or needs an API key; the Anthropic client
+      # is stubbed, so nothing here can incur model spend.
+      - name: Unit tests
+        run: npm test
+
+  # Deployment is intentionally disabled. Enabling it requires:
+  #   1. An existing Function App (Node 20, Functions v4) in Azure.
+  #   2. Its publish profile stored as the repository secret
+  #      AZURE_FUNCTIONAPP_PUBLISH_PROFILE.
+  #   3. The app-name value below filled in.
+  # The secret does not exist yet, so referencing it would only produce a
+  # failing job on every push. Deploys are manual until then (see
+  # azure-function/README.md).
+  #
+  # deploy:
+  #   name: Deploy to Azure Functions
+  #   needs: build
+  #   if: github.ref == 'refs/heads/main'
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Set up Node.js 20
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '20'
+  #         cache: npm
+  #         cache-dependency-path: azure-function/package-lock.json
+  #
+  #     - name: Install production dependencies
+  #       run: npm ci --omit=dev
+  #
+  #     - name: Deploy
+  #       uses: Azure/functions-action@v1
+  #       with:
+  #         app-name: <function-app-name>
+  #         package: azure-function
+  #         publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}

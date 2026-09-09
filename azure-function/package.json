@@ -1,0 +1,20 @@
+{
+  "name": "smart-todo-enrich-function",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HTTP-triggered Azure Function that proxies Smart Todo task text to the Claude API for translation and categorisation.",
+  "type": "module",
+  "main": "src/functions/*.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "func start",
+    "lint": "node scripts/lint.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.124.0",
+    "@azure/functions": "4.16.2"
+  }
+}
