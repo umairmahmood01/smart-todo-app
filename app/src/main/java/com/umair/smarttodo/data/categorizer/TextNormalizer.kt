@@ -97,5 +97,5 @@ internal object TextNormalizer {
         return out.toString()
     }
 
-    private val WHITESPACE = Regex("\s+")
+    private val WHITESPACE = Regex("\\s+")
 }
