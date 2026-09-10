@@ -133,7 +133,7 @@ class TaskListRepositoryImpl @Inject constructor(
          */
         private fun escapeLikeArgument(term: String): String = term
             .replace("\\", "\\\\")
-            .replace("%", "\%")
-            .replace("_", "\_")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
     }
 }
