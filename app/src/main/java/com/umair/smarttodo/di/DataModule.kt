@@ -3,6 +3,7 @@ package com.umair.smarttodo.di
 import android.content.Context
 import androidx.room.Room
 import com.umair.smarttodo.data.categorizer.RuleBasedTaskCategorizer
+import com.umair.smarttodo.data.local.Migrations
 import com.umair.smarttodo.data.local.TaskDao
 import com.umair.smarttodo.data.local.TaskDatabase
 import com.umair.smarttodo.data.repository.TaskRepositoryImpl
@@ -40,14 +41,16 @@ object DataModule {
     /**
      * The app-wide [TaskDatabase].
      *
-     * No migrations are registered yet because the schema is at version 1. When version 2
-     * arrives, add an explicit `Migration` here rather than a destructive fallback, so that
-     * a user's tasks survive the upgrade.
+     * [Migrations.MIGRATION_1_2] is registered explicitly (no destructive fallback), so a
+     * user's existing tasks survive the version 1 -> 2 upgrade. See that object's kdoc for
+     * this migration's verification status: reviewed by hand, not yet run on a device.
      */
     @Provides
     @Singleton
     fun provideTaskDatabase(@ApplicationContext context: Context): TaskDatabase =
-        Room.databaseBuilder(context, TaskDatabase::class.java, TaskDatabase.NAME).build()
+        Room.databaseBuilder(context, TaskDatabase::class.java, TaskDatabase.NAME)
+            .addMigrations(Migrations.MIGRATION_1_2)
+            .build()
 
     /** The DAO is owned by the database, so it inherits the database's singleton lifetime. */
     @Provides

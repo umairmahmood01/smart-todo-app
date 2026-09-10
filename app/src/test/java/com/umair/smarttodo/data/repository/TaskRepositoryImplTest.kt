@@ -1,6 +1,7 @@
 package com.umair.smarttodo.data.repository
 
 import com.umair.smarttodo.data.local.TaskEntity
+import com.umair.smarttodo.data.reminder.FakeReminderScheduler
 import com.umair.smarttodo.domain.Category
 import com.umair.smarttodo.domain.TaskCategorizer
 import com.umair.smarttodo.domain.TaskSort
@@ -23,10 +24,12 @@ class TaskRepositoryImplTest {
     private val dao = FakeTaskDao()
     private val categorizer = RecordingCategorizer(Category.WORK)
     private val scheduler = FakeEnrichmentScheduler()
+    private val reminderScheduler = FakeReminderScheduler()
     private val repository = TaskRepositoryImpl(
         dao = dao,
         categorizer = categorizer,
         enrichmentScheduler = scheduler,
+        reminderScheduler = reminderScheduler,
         ioDispatcher = Dispatchers.Unconfined,
     )
 
@@ -76,6 +79,22 @@ class TaskRepositoryImplTest {
 
         assertEquals(0, dao.insertCount)
         assertTrue(scheduler.scheduled.isEmpty())
+    }
+
+    @Test
+    fun `addTask returns the id of the row that was actually inserted`() = runTest {
+        val returnedId = repository.addTask("buy milk")
+
+        val observed = repository.observeTasks().first()
+        assertEquals(1, observed.size)
+        assertEquals(observed.single().id, returnedId)
+        assertTrue(returnedId != 0L)
+    }
+
+    @Test
+    fun `addTask returns 0L for blank input`() = runTest {
+        assertEquals(0L, repository.addTask(""))
+        assertEquals(0L, repository.addTask("      "))
     }
 
     // --- observeTasks ----------------------------------------------------------------
@@ -163,6 +182,33 @@ class TaskRepositoryImplTest {
 
         repository.delete(7L)
         assertTrue(dao.currentRows.isEmpty())
+    }
+
+    // --- setReminder -------------------------------------------------------------------
+
+    @Test
+    fun `setReminder with a non-null instant writes the column and schedules`() = runTest {
+        dao.setRows(entity(id = 9L, rawText = "submit report", category = Category.WORK))
+
+        repository.setReminder(9L, 1_800_000_000_000L)
+
+        assertEquals(1, dao.updateReminderCallCount)
+        assertEquals(1_800_000_000_000L, dao.currentRows.single().reminderAt)
+        assertEquals(listOf(9L to 1_800_000_000_000L), reminderScheduler.scheduledTasks)
+        assertTrue(reminderScheduler.cancelledTasks.isEmpty())
+    }
+
+    @Test
+    fun `setReminder with null clears the column and cancels`() = runTest {
+        dao.setRows(entity(id = 9L, rawText = "submit report", category = Category.WORK))
+        repository.setReminder(9L, 1_800_000_000_000L)
+
+        repository.setReminder(9L, null)
+
+        assertEquals(2, dao.updateReminderCallCount)
+        assertNull(dao.currentRows.single().reminderAt)
+        assertEquals(listOf(9L), reminderScheduler.cancelledTasks)
+        assertEquals(1, reminderScheduler.scheduledTasks.size)
     }
 
     private fun entity(

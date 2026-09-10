@@ -86,6 +86,24 @@ class FakeTaskDao : TaskDao {
         rows.value = rows.value.map { if (it.id == id) it.copy(isPinned = pinned) else it }
     }
 
+    /** How many rows [updateReminder] actually changed, summed across every call. */
+    var updateReminderCallCount: Int = 0
+        private set
+
+    override suspend fun updateReminder(id: Long, atMillis: Long?): Int {
+        updateReminderCallCount++
+        var updated = 0
+        rows.value = rows.value.map { row ->
+            if (row.id == id) {
+                updated++
+                row.copy(reminderAt = atMillis)
+            } else {
+                row
+            }
+        }
+        return updated
+    }
+
     override suspend fun getById(id: Long): TaskEntity? = rows.value.firstOrNull { it.id == id }
 
     override suspend fun applyEnrichment(

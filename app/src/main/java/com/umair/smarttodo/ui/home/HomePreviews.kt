@@ -50,11 +50,18 @@ private fun HomeScreenPreview() {
             onToggleStatus = {},
             onSortChange = {},
             onClearFilters = {},
-            onAddTask = {},
+            onAddTask = { _, _ -> },
             onToggleStatusOf = {},
             onSetStatus = { _, _ -> },
             onTogglePin = {},
             onDelete = {},
+            onSetTaskReminder = { _, _ -> },
+            onAddTaskList = { _, _, _ -> },
+            onToggleListItem = { _, _ -> },
+            onAddListItem = { _, _ -> },
+            onRemoveListItem = { _, _ -> },
+            onDeleteList = {},
+            onSetListReminder = { _, _ -> },
         )
     }
 }
@@ -70,11 +77,18 @@ private fun HomeScreenEmptyPreview() {
             onToggleStatus = {},
             onSortChange = {},
             onClearFilters = {},
-            onAddTask = {},
+            onAddTask = { _, _ -> },
             onToggleStatusOf = {},
             onSetStatus = { _, _ -> },
             onTogglePin = {},
             onDelete = {},
+            onSetTaskReminder = { _, _ -> },
+            onAddTaskList = { _, _, _ -> },
+            onToggleListItem = { _, _ -> },
+            onAddListItem = { _, _ -> },
+            onRemoveListItem = { _, _ -> },
+            onDeleteList = {},
+            onSetListReminder = { _, _ -> },
         )
     }
 }
@@ -90,11 +104,18 @@ private fun HomeScreenNoResultsPreview() {
             onToggleStatus = {},
             onSortChange = {},
             onClearFilters = {},
-            onAddTask = {},
+            onAddTask = { _, _ -> },
             onToggleStatusOf = {},
             onSetStatus = { _, _ -> },
             onTogglePin = {},
             onDelete = {},
+            onSetTaskReminder = { _, _ -> },
+            onAddTaskList = { _, _, _ -> },
+            onToggleListItem = { _, _ -> },
+            onAddListItem = { _, _ -> },
+            onRemoveListItem = { _, _ -> },
+            onDeleteList = {},
+            onSetListReminder = { _, _ -> },
         )
     }
 }
@@ -103,7 +124,13 @@ private fun HomeScreenNoResultsPreview() {
 @Composable
 private fun HomeRouteWithFakeRepositoryPreview() {
     SmartTodoTheme {
-        HomeRoute(viewModel = HomeViewModel(PreviewTaskRepository()))
+        HomeRoute(
+            viewModel = HomeViewModel(
+                repository = PreviewTaskRepository(),
+                taskListRepository = PreviewTaskListRepository(),
+                taskCategorizer = PreviewTaskCategorizer(),
+            ),
+        )
     }
 }
 
@@ -191,6 +218,7 @@ private fun TaskCardPreview() {
                 onSetStatus = { _, _ -> },
                 onTogglePin = {},
                 onDelete = {},
+                onSetReminder = { _, _ -> },
             )
         }
     }

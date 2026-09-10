@@ -9,6 +9,9 @@ package com.umair.smarttodo.domain
  *   non-English Roman script; null when no normalization was produced.
  * @param createdDate creation time as epoch milliseconds (UTC).
  * @param dueDate optional due time as epoch milliseconds (UTC).
+ * @param reminderAt optional reminder time as epoch milliseconds (UTC); null means no
+ *   reminder is scheduled. Distinct from [dueDate] — a task can have a due date with no
+ *   reminder, a reminder with no due date, both, or neither.
  */
 data class Task(
     val id: Long = 0,
@@ -19,4 +22,5 @@ data class Task(
     val isPinned: Boolean = false,
     val createdDate: Long,
     val dueDate: Long? = null,
+    val reminderAt: Long? = null,
 )

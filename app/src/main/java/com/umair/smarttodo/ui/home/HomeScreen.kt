@@ -27,9 +27,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,8 +44,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.umair.smarttodo.R
 import com.umair.smarttodo.domain.Category
 import com.umair.smarttodo.domain.Task
+import com.umair.smarttodo.domain.TaskList
+import com.umair.smarttodo.domain.TaskListItem
 import com.umair.smarttodo.domain.TaskSort
 import com.umair.smarttodo.domain.TaskStatus
+import com.umair.smarttodo.ui.home.components.AddEntryChooserSheet
+import com.umair.smarttodo.ui.home.components.AddTaskListSheet
 import com.umair.smarttodo.ui.home.components.AddTaskSheet
 import com.umair.smarttodo.ui.home.components.CategoryChipRow
 import com.umair.smarttodo.ui.home.components.EmptyTasksState
@@ -53,6 +58,8 @@ import com.umair.smarttodo.ui.home.components.NoResultsState
 import com.umair.smarttodo.ui.home.components.ProgressCard
 import com.umair.smarttodo.ui.home.components.StatusTrackerRow
 import com.umair.smarttodo.ui.home.components.TaskCard
+import com.umair.smarttodo.ui.home.components.TaskListCard
+import com.umair.smarttodo.ui.home.components.TaskListDetailSheet
 import com.umair.smarttodo.ui.home.components.TaskSearchBar
 import com.umair.smarttodo.ui.theme.AmbientBottomGlow
 import com.umair.smarttodo.ui.theme.AmbientTopGlow
@@ -84,6 +91,13 @@ fun HomeRoute(
         onSetStatus = viewModel::onSetStatus,
         onTogglePin = viewModel::onTogglePin,
         onDelete = viewModel::onDelete,
+        onSetTaskReminder = viewModel::onSetTaskReminder,
+        onAddTaskList = viewModel::onAddTaskList,
+        onToggleListItem = viewModel::onToggleListItem,
+        onAddListItem = viewModel::onAddListItem,
+        onRemoveListItem = viewModel::onRemoveListItem,
+        onDeleteList = viewModel::onDeleteList,
+        onSetListReminder = viewModel::onSetListReminder,
         modifier = modifier,
     )
 }
@@ -96,14 +110,22 @@ fun HomeScreen(
     onToggleStatus: (TaskStatus) -> Unit,
     onSortChange: (TaskSort) -> Unit,
     onClearFilters: () -> Unit,
-    onAddTask: (String) -> Unit,
+    onAddTask: (String, Long?) -> Unit,
     onToggleStatusOf: (Task) -> Unit,
     onSetStatus: (Task, TaskStatus) -> Unit,
     onTogglePin: (Task) -> Unit,
     onDelete: (Task) -> Unit,
+    onSetTaskReminder: (Task, Long?) -> Unit,
+    onAddTaskList: (String, List<String>, Long?) -> Unit,
+    onToggleListItem: (TaskList, TaskListItem) -> Unit,
+    onAddListItem: (TaskList, String) -> Unit,
+    onRemoveListItem: (TaskList, TaskListItem) -> Unit,
+    onDeleteList: (TaskList) -> Unit,
+    onSetListReminder: (TaskList, Long?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var showAddSheet by rememberSaveable { mutableStateOf(false) }
+    var addSheetStep by rememberSaveable { mutableStateOf(AddSheetStep.NONE) }
+    var openListId by rememberSaveable { mutableStateOf<Long?>(null) }
     val screenPadding = SmartTodoDimens.ScreenPadding
 
     Box(
@@ -117,7 +139,7 @@ fun HomeScreen(
                 .fillMaxSize()
                 .statusBarsPadding(),
             contentPadding = PaddingValues(top = 6.dp, bottom = 132.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(SmartTodoDimens.CardListSpacing),
         ) {
             item(key = "header") {
                 Column(modifier = Modifier.padding(horizontal = screenPadding)) {
@@ -182,15 +204,26 @@ fun HomeScreen(
                     EmptyTasksState()
                 }
 
-                else -> items(items = state.tasks, key = { task -> task.id }) { task ->
-                    TaskCard(
-                        task = task,
-                        onToggleStatus = onToggleStatusOf,
-                        onSetStatus = onSetStatus,
-                        onTogglePin = onTogglePin,
-                        onDelete = onDelete,
-                        modifier = Modifier.padding(horizontal = screenPadding),
-                    )
+                else -> items(items = state.feedItems, key = { it.feedKey }) { feedItem ->
+                    when (feedItem) {
+                        is HomeFeedItem.TaskEntry -> TaskCard(
+                            task = feedItem.task,
+                            onToggleStatus = onToggleStatusOf,
+                            onSetStatus = onSetStatus,
+                            onTogglePin = onTogglePin,
+                            onDelete = onDelete,
+                            onSetReminder = onSetTaskReminder,
+                            modifier = Modifier.padding(horizontal = screenPadding),
+                        )
+
+                        is HomeFeedItem.ListEntry -> TaskListCard(
+                            taskList = feedItem.taskList,
+                            onOpen = { openListId = it.id },
+                            onDelete = onDeleteList,
+                            onSetReminder = onSetListReminder,
+                            modifier = Modifier.padding(horizontal = screenPadding),
+                        )
+                    }
                 }
             }
         }
@@ -213,7 +246,7 @@ fun HomeScreen(
         )
 
         AddTaskFab(
-            onClick = { showAddSheet = true },
+            onClick = { addSheetStep = AddSheetStep.CHOOSER },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .navigationBarsPadding()
@@ -221,13 +254,63 @@ fun HomeScreen(
         )
     }
 
-    if (showAddSheet) {
-        AddTaskSheet(
-            onDismiss = { showAddSheet = false },
-            onSave = onAddTask,
+    when (addSheetStep) {
+        AddSheetStep.CHOOSER -> AddEntryChooserSheet(
+            onDismiss = { addSheetStep = AddSheetStep.NONE },
+            onChooseSingleTask = { addSheetStep = AddSheetStep.TASK },
+            onChooseTaskList = { addSheetStep = AddSheetStep.LIST },
+        )
+
+        AddSheetStep.TASK -> AddTaskSheet(
+            onDismiss = { addSheetStep = AddSheetStep.NONE },
+            onSave = { rawText, reminderAt ->
+                onAddTask(rawText, reminderAt)
+                addSheetStep = AddSheetStep.NONE
+            },
+        )
+
+        AddSheetStep.LIST -> AddTaskListSheet(
+            onDismiss = { addSheetStep = AddSheetStep.NONE },
+            onSave = { title, items, reminderAt ->
+                onAddTaskList(title, items, reminderAt)
+                addSheetStep = AddSheetStep.NONE
+            },
+        )
+
+        AddSheetStep.NONE -> Unit
+    }
+
+    val openList = openListId?.let { id ->
+        state.feedItems
+            .filterIsInstance<HomeFeedItem.ListEntry>()
+            .map { it.taskList }
+            .find { it.id == id }
+    }
+    if (openList != null) {
+        TaskListDetailSheet(
+            taskList = openList,
+            onDismiss = { openListId = null },
+            onToggleItem = { item -> onToggleListItem(openList, item) },
+            onAddItem = { text -> onAddListItem(openList, text) },
+            onRemoveItem = { item -> onRemoveListItem(openList, item) },
+            onSetReminder = { atMillis -> onSetListReminder(openList, atMillis) },
+            onDelete = {
+                onDeleteList(openList)
+                openListId = null
+            },
         )
     }
+    // The list may disappear (e.g. deleted from another surface) while its detail
+    // sheet is open; clear the stale id via a LaunchedEffect rather than mutating
+    // state directly during composition.
+    LaunchedEffect(openListId, openList) {
+        if (openListId != null && openList == null) {
+            openListId = null
+        }
+    }
 }
+
+private enum class AddSheetStep { NONE, CHOOSER, TASK, LIST }
 
 @Composable
 private fun TaskSectionHeader(
@@ -292,7 +375,7 @@ private fun AddTaskFab(
     }
 }
 
-/** Two soft radial washes behind the whole screen (mockup `::before` / `::after`). */
+/** Two soft radial washes behind the whole screen (mockup ::before / ::after). */
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawAmbientGlows() {
     drawCircle(
         brush = Brush.radialGradient(

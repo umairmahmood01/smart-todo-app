@@ -2,6 +2,11 @@
 <resources>
     <string name="app_name">Smart Todo</string>
 
+    <!-- Reminders -->
+    <string name="reminder_channel_name">Task reminders</string>
+    <string name="reminder_channel_description">Notifications for the reminders you set on tasks and lists.</string>
+    <string name="reminder_notification_text">Reminder</string>
+
     <!-- Header -->
     <string name="profile_name">Umair</string>
     <string name="greeting_morning">👋 Good morning, %1$s</string>
@@ -49,6 +54,8 @@
     <string name="action_pin">Pin task</string>
     <string name="action_unpin">Unpin task</string>
     <string name="action_delete">Delete task</string>
+    <string name="action_share">Share</string>
+    <string name="cd_reminder_active">Reminder set</string>
 
     <!-- Add task sheet -->
     <string name="cd_add_task">Add a task</string>
@@ -57,6 +64,30 @@
     <string name="add_task_hint">Write it in any language — the category is chosen for you.</string>
     <string name="action_save">Save</string>
     <string name="action_cancel">Cancel</string>
+    <string name="action_next">Next</string>
+
+    <!-- Reminders -->
+    <string name="reminder_row_label">Remind me</string>
+    <string name="action_set_reminder">Set reminder</string>
+    <string name="action_change_reminder">Change reminder</string>
+    <string name="action_clear_reminder">Clear reminder</string>
+    <string name="reminder_permission_hint">Notifications are off, so reminders will not show an alert until you allow them in system settings.</string>
+
+    <!-- Add entry chooser -->
+    <string name="chooser_title">What would you like to add?</string>
+    <string name="chooser_single_task">Single task</string>
+    <string name="chooser_single_task_hint">One thing to do, tracked on its own.</string>
+    <string name="chooser_task_list">Task list</string>
+    <string name="chooser_task_list_hint">A named checklist, like a grocery list.</string>
+
+    <!-- Add task list sheet -->
+    <string name="add_list_title">New task list</string>
+    <string name="add_list_title_placeholder">e.g. Grocery list</string>
+    <string name="add_list_items_label">Items</string>
+    <string name="add_list_item_placeholder">Add an item…</string>
+    <string name="action_add_item">Add item</string>
+    <string name="action_remove_item">Remove item</string>
+    <string name="list_progress_format">%1$d/%2$d done</string>
 
     <!-- Empty states -->
     <string name="empty_title">No tasks yet</string>

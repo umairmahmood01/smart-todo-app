@@ -4,6 +4,7 @@ import com.umair.smarttodo.data.enrichment.EnrichmentScheduler
 import com.umair.smarttodo.data.local.TaskDao
 import com.umair.smarttodo.data.local.TaskEntity
 import com.umair.smarttodo.data.local.toDomain
+import com.umair.smarttodo.data.reminder.ReminderScheduler
 import com.umair.smarttodo.di.IoDispatcher
 import com.umair.smarttodo.domain.Category
 import com.umair.smarttodo.domain.Task
@@ -29,6 +30,7 @@ import kotlinx.coroutines.withContext
  * @param dao data access for the `tasks` table.
  * @param categorizer assigns a [Category] to freshly captured text, offline and instantly.
  * @param enrichmentScheduler queues the optional background refinement of a new task.
+ * @param reminderScheduler schedules/cancels the OS-level reminder behind [setReminder].
  * @param ioDispatcher injected rather than hardcoded to `Dispatchers.IO` so that tests can
  *   substitute a `TestDispatcher` and drive execution deterministically.
  */
@@ -37,6 +39,7 @@ class TaskRepositoryImpl @Inject constructor(
     private val dao: TaskDao,
     private val categorizer: TaskCategorizer,
     private val enrichmentScheduler: EnrichmentScheduler,
+    private val reminderScheduler: ReminderScheduler,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : TaskRepository {
 
@@ -79,9 +82,9 @@ class TaskRepositoryImpl @Inject constructor(
      *
      * Blank input is ignored rather than persisted as an empty row.
      */
-    override suspend fun addTask(rawText: String) {
+    override suspend fun addTask(rawText: String): Long {
         val text = rawText.trim()
-        if (text.isEmpty()) return
+        if (text.isEmpty()) return 0L
         val entity = TaskEntity(
             rawText = text,
             normalizedEnglishText = null,
@@ -93,6 +96,7 @@ class TaskRepositoryImpl @Inject constructor(
         )
         val id = withContext(ioDispatcher) { dao.insert(entity) }
         enrichmentScheduler.scheduleEnrichment(taskId = id, rawText = text)
+        return id
     }
 
     override suspend fun updateStatus(id: Long, status: TaskStatus) {
@@ -101,6 +105,24 @@ class TaskRepositoryImpl @Inject constructor(
 
     override suspend fun setPinned(id: Long, pinned: Boolean) {
         withContext(ioDispatcher) { dao.setPinned(id, pinned) }
+    }
+
+    /**
+     * Persists the reminder column first, then schedules or cancels the OS-level reminder as
+     * a side effect - per the [TaskRepository.setReminder] contract, the caller never does
+     * that scheduling separately.
+     *
+     * The task's current text is deliberately *not* looked up here: [ReminderPoster] reads it
+     * fresh at fire time, so an edit made between now and delivery is reflected in the
+     * notification instead of showing stale text.
+     */
+    override suspend fun setReminder(id: Long, atMillis: Long?) {
+        withContext(ioDispatcher) { dao.updateReminder(id, atMillis) }
+        if (atMillis == null) {
+            reminderScheduler.cancelTaskReminder(id)
+        } else {
+            reminderScheduler.scheduleTaskReminder(id, atMillis)
+        }
     }
 
     override suspend fun delete(id: Long) {

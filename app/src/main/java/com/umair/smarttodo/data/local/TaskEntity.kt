@@ -55,4 +55,11 @@ data class TaskEntity(
     /** Epoch milliseconds (UTC), or `null` when the task has no due date. */
     @ColumnInfo(name = "dueDate")
     val dueDate: Long? = null,
+
+    /**
+     * Epoch milliseconds (UTC) at which a reminder notification should fire, or `null` when
+     * no reminder is scheduled. Added in schema version 2; see `Migrations.MIGRATION_1_2`.
+     */
+    @ColumnInfo(name = "reminderAt")
+    val reminderAt: Long? = null,
 )

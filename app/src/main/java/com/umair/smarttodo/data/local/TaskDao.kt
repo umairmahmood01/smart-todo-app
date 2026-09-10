@@ -90,6 +90,15 @@ interface TaskDao {
     @Query("UPDATE tasks SET isPinned = :pinned WHERE id = :id")
     suspend fun setPinned(id: Long, pinned: Boolean)
 
+    /**
+     * Sets or clears the reminder time on a single row, touching only that column so a
+     * concurrent status/pin edit is never clobbered.
+     *
+     * @return the number of rows changed: `1` normally, `0` when [id] does not exist.
+     */
+    @Query("UPDATE tasks SET reminderAt = :atMillis WHERE id = :id")
+    suspend fun updateReminder(id: Long, atMillis: Long?): Int
+
     /** Reads a single row once, or `null` when [id] does not exist. */
     @Query("SELECT * FROM tasks WHERE id = :id")
     suspend fun getById(id: Long): TaskEntity?

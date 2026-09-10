@@ -17,11 +17,24 @@ interface TaskRepository {
         sort: TaskSort = TaskSort.CREATED_DESC,
     ): Flow<List<Task>>
 
-    suspend fun addTask(rawText: String)
+    /**
+     * Returns the new row's generated id, or `0L` for a blank/no-op input that was
+     * not persisted (mirroring [Task.id]'s own documented convention: "0 means not
+     * yet persisted").
+     */
+    suspend fun addTask(rawText: String): Long
 
     suspend fun updateStatus(id: Long, status: TaskStatus)
 
     suspend fun setPinned(id: Long, pinned: Boolean)
+
+    /**
+     * Sets or clears the reminder for task [id]. Passing `atMillis = null` clears the
+     * reminder. Implementations are responsible for scheduling/cancelling the actual
+     * OS-level reminder as a side effect of this call — the caller does not do that
+     * separately.
+     */
+    suspend fun setReminder(id: Long, atMillis: Long?)
 
     suspend fun delete(id: Long)
 }

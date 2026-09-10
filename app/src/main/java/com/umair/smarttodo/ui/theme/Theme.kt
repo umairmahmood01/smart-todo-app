@@ -51,7 +51,7 @@ val SmartTodoShapes = Shapes(
 
 object SmartTodoDimens {
     val ScreenPadding = 20.dp
-    val TaskCardRadius = 22.dp
+    val TaskCardRadius = 18.dp
     val SurfaceRadius = 20.dp
     val TrackerPillRadius = 12.dp
     val PillRadius = 999.dp
@@ -60,9 +60,14 @@ object SmartTodoDimens {
     val AvatarSize = 44.dp
     val ProgressRingSize = 62.dp
     val ProgressRingStroke = 7.dp
-    val TaskTileSize = 46.dp
+    val TaskTileSize = 38.dp
     val FabSize = 60.dp
     val ListBottomFade = 96.dp
+    /** Horizontal/vertical padding inside a task or task-list card, tuned ~15-20% smaller. */
+    val TaskCardPaddingHorizontal = 13.dp
+    val TaskCardPaddingVertical = 11.dp
+    /** Gap between stacked cards in the feed `LazyColumn`. */
+    val CardListSpacing = 11.dp
 }
 
 @Composable

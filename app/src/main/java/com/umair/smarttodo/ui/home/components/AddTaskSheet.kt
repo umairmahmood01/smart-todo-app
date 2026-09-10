@@ -55,17 +55,19 @@ import com.umair.smarttodo.ui.theme.TextPrimary
 private const val FocusDelayMillis = 180L
 
 /**
- * Raw text in, nothing else: no category picker, because categorization is automatic.
+ * Raw text in, plus an optional reminder instant: no category picker, because
+ * categorization is automatic.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTaskSheet(
     onDismiss: () -> Unit,
-    onSave: (String) -> Unit,
+    onSave: (rawText: String, reminderAt: Long?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var text by remember { mutableStateOf("") }
+    var reminderAt by remember { mutableStateOf<Long?>(null) }
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
@@ -98,7 +100,7 @@ fun AddTaskSheet(
             AddTaskField(
                 value = text,
                 onValueChange = { text = it },
-                onSubmit = { submit(text, onSave, onDismiss) },
+                onSubmit = { submit(text, reminderAt, onSave, onDismiss) },
                 focusRequester = focusRequester,
             )
             Spacer(Modifier.height(10.dp))
@@ -106,6 +108,11 @@ fun AddTaskSheet(
                 text = stringResource(R.string.add_task_hint),
                 style = MaterialTheme.typography.labelLarge,
                 color = TextMuted,
+            )
+            Spacer(Modifier.height(14.dp))
+            ReminderRow(
+                reminderAt = reminderAt,
+                onReminderChange = { reminderAt = it },
             )
             Spacer(Modifier.height(18.dp))
             Row(
@@ -121,7 +128,7 @@ fun AddTaskSheet(
                 }
                 Spacer(Modifier.padding(horizontal = 4.dp))
                 Button(
-                    onClick = { submit(text, onSave, onDismiss) },
+                    onClick = { submit(text, reminderAt, onSave, onDismiss) },
                     enabled = text.isNotBlank(),
                     shape = RoundedCornerShape(SmartTodoDimens.SurfaceRadius),
                     colors = ButtonDefaults.buttonColors(
@@ -178,8 +185,13 @@ private fun AddTaskField(
     }
 }
 
-private fun submit(text: String, onSave: (String) -> Unit, onDismiss: () -> Unit) {
+private fun submit(
+    text: String,
+    reminderAt: Long?,
+    onSave: (String, Long?) -> Unit,
+    onDismiss: () -> Unit,
+) {
     if (text.isBlank()) return
-    onSave(text)
+    onSave(text, reminderAt)
     onDismiss()
 }

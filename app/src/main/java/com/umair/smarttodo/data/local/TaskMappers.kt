@@ -16,6 +16,7 @@ fun TaskEntity.toDomain(): Task = Task(
     isPinned = isPinned,
     createdDate = createdDate,
     dueDate = dueDate,
+    reminderAt = reminderAt,
 )
 
 /**
@@ -33,6 +34,7 @@ fun Task.toEntity(): TaskEntity = TaskEntity(
     isPinned = isPinned,
     createdDate = createdDate,
     dueDate = dueDate,
+    reminderAt = reminderAt,
 )
 
 /** Convenience bulk mapping used by the repository's `Flow` transform. */

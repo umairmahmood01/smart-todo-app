@@ -19,8 +19,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.NotificationsNone
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -39,6 +42,7 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -46,12 +50,7 @@ import androidx.compose.ui.unit.sp
 import com.umair.smarttodo.R
 import com.umair.smarttodo.domain.Task
 import com.umair.smarttodo.domain.TaskStatus
-import com.umair.smarttodo.ui.theme.OnCardBorder
-import com.umair.smarttodo.ui.theme.OnCardScrim
-import com.umair.smarttodo.ui.theme.OnCardTextMuted
 import com.umair.smarttodo.ui.theme.SmartTodoDimens
-import com.umair.smarttodo.ui.theme.TaskCardBrush
-import com.umair.smarttodo.ui.theme.TextOnAccent
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -61,8 +60,11 @@ private const val DatePattern = "dd.MM.yyyy"
 private const val DateTimePattern = "dd.MM.yyyy HH:mm"
 
 /**
- * A single neon task card. Every interaction is delegated upwards; the only state
- * held here is whether the overflow menu is open, which is pure UI state.
+ * A single category-gradient task card. Every interaction is delegated upwards; the
+ * only state held here is whether the overflow menu / reminder dialog is open, which is
+ * pure UI state. Text, icon and hairline colours all derive from
+ * `task.category.visual().contentColor` so they stay readable on every category's
+ * gradient (some, like Health & Fitness, use dark text on a light gradient).
  */
 @Composable
 fun TaskCard(
@@ -71,37 +73,57 @@ fun TaskCard(
     onSetStatus: (Task, TaskStatus) -> Unit,
     onTogglePin: (Task) -> Unit,
     onDelete: (Task) -> Unit,
+    onSetReminder: (Task, Long?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val visual = task.category.visual()
+    val onCard = visual.contentColor
+    val onCardScrim = onCard.copy(alpha = 0.20f)
+    val onCardBorder = onCard.copy(alpha = 0.18f)
+    val onCardMuted = onCard.copy(alpha = 0.76f)
     val shape = RoundedCornerShape(SmartTodoDimens.TaskCardRadius)
+    val context = LocalContext.current
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(TaskCardBrush)
+            .background(visual.brush)
             .drawWithCache {
-                // Soft white bloom in the top-right corner of the card.
+                // Soft bloom in the top-right corner of the card, tinted with the
+                // card's own content colour so it reads on both light and dark cards.
                 val brush = Brush.radialGradient(
-                    colors = listOf(Color.White.copy(alpha = 0.16f), Color.Transparent),
+                    colors = listOf(onCard.copy(alpha = 0.16f), Color.Transparent),
                     center = Offset(size.width - 40.dp.toPx(), -20.dp.toPx()),
                     radius = 110.dp.toPx(),
                 )
                 onDrawBehind { drawRect(brush) }
             },
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+        Column(
+            modifier = Modifier.padding(
+                horizontal = SmartTodoDimens.TaskCardPaddingHorizontal,
+                vertical = SmartTodoDimens.TaskCardPaddingVertical,
+            ),
+        ) {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
-                    if (task.isPinned) {
-                        PinnedBadge()
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (task.isPinned) {
+                            PinnedBadge(onCard = onCard, onCardScrim = onCardScrim, onCardBorder = onCardBorder)
+                        }
+                        if (task.reminderAt != null) {
+                            if (task.isPinned) Spacer(Modifier.width(6.dp))
+                            ReminderBadge(onCard = onCard, onCardScrim = onCardScrim, onCardBorder = onCardBorder)
+                        }
+                    }
+                    if (task.isPinned || task.reminderAt != null) {
                         Spacer(Modifier.height(8.dp))
                     }
                     Text(
                         text = task.rawText,
                         style = MaterialTheme.typography.titleLarge,
-                        color = TextOnAccent,
+                        color = onCard,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -110,7 +132,7 @@ fun TaskCard(
                 Text(
                     text = rememberFormattedDate(task.createdDate),
                     style = MaterialTheme.typography.labelMedium,
-                    color = OnCardTextMuted,
+                    color = onCardMuted,
                     maxLines = 1,
                     modifier = Modifier.padding(top = 3.dp),
                 )
@@ -119,14 +141,17 @@ fun TaskCard(
                     onSetStatus = onSetStatus,
                     onTogglePin = onTogglePin,
                     onDelete = onDelete,
+                    onSetReminder = onSetReminder,
+                    onShare = { context.shareAsPlainText(task.toShareText()) },
+                    tint = onCardMuted,
                 )
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
 
             Row(verticalAlignment = Alignment.Top) {
-                CategoryTile(emoji = visual.emoji)
-                Spacer(Modifier.width(12.dp))
+                CategoryTile(emoji = visual.emoji, onCardScrim = onCardScrim, onCardBorder = onCardBorder)
+                Spacer(Modifier.width(11.dp))
                 Column {
                     // Filled in later by the LLM normalization layer, and absent for
                     // English input, so it has to degrade gracefully.
@@ -135,56 +160,101 @@ fun TaskCard(
                         Text(
                             text = normalized,
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextOnAccent.copy(alpha = 0.94f),
+                            color = onCard.copy(alpha = 0.94f),
                             maxLines = 3,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        Spacer(Modifier.height(7.dp))
+                        Spacer(Modifier.height(6.dp))
                     }
-                    TaskMetaLine(task = task)
+                    TaskMetaLine(task = task, onCard = onCard)
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TaskTag(text = visual.emoji + "  " + task.category.label)
-                StatusTag(status = task.status, onClick = { onToggleStatus(task) })
+                TaskTag(
+                    text = visual.emoji + "  " + task.category.label,
+                    onCard = onCard,
+                    onCardScrim = onCardScrim,
+                    onCardBorder = onCardBorder,
+                )
+                StatusTag(
+                    status = task.status,
+                    onClick = { onToggleStatus(task) },
+                    onCard = onCard,
+                    onCardScrim = onCardScrim,
+                    onCardBorder = onCardBorder,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun PinnedBadge(modifier: Modifier = Modifier) {
+private fun PinnedBadge(
+    onCard: Color,
+    onCardScrim: Color,
+    onCardBorder: Color,
+    modifier: Modifier = Modifier,
+) {
     Text(
         text = stringResource(R.string.task_pinned),
         style = MaterialTheme.typography.labelSmall,
-        color = TextOnAccent,
+        color = onCard,
         modifier = modifier
             .clip(CircleShape)
-            .background(OnCardScrim)
-            .border(width = 1.dp, color = OnCardBorder, shape = CircleShape)
+            .background(onCardScrim)
+            .border(width = 1.dp, color = onCardBorder, shape = CircleShape)
             .padding(horizontal = 10.dp, vertical = 4.dp),
     )
 }
 
 @Composable
-private fun CategoryTile(emoji: String, modifier: Modifier = Modifier) {
+private fun ReminderBadge(
+    onCard: Color,
+    onCardScrim: Color,
+    onCardBorder: Color,
+    modifier: Modifier = Modifier,
+) {
     Box(
         modifier = modifier
-            .size(SmartTodoDimens.TaskTileSize)
-            .clip(RoundedCornerShape(14.dp))
-            .background(OnCardScrim)
-            .border(width = 1.dp, color = OnCardBorder, shape = RoundedCornerShape(14.dp)),
+            .clip(CircleShape)
+            .background(onCardScrim)
+            .border(width = 1.dp, color = onCardBorder, shape = CircleShape)
+            .padding(6.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text = emoji, fontSize = 22.sp)
+        Icon(
+            imageVector = Icons.Rounded.NotificationsActive,
+            contentDescription = stringResource(R.string.cd_reminder_active),
+            tint = onCard,
+            modifier = Modifier.size(11.dp),
+        )
     }
 }
 
 @Composable
-private fun TaskMetaLine(task: Task, modifier: Modifier = Modifier) {
+private fun CategoryTile(
+    emoji: String,
+    onCardScrim: Color,
+    onCardBorder: Color,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(SmartTodoDimens.TaskTileSize)
+            .clip(RoundedCornerShape(12.dp))
+            .background(onCardScrim)
+            .border(width = 1.dp, color = onCardBorder, shape = RoundedCornerShape(12.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text = emoji, fontSize = 18.sp)
+    }
+}
+
+@Composable
+private fun TaskMetaLine(task: Task, onCard: Color, modifier: Modifier = Modifier) {
     val dueDate = task.dueDate
     val text = if (dueDate != null) {
         stringResource(R.string.task_due, rememberFormattedDateTime(dueDate))
@@ -195,39 +265,52 @@ private fun TaskMetaLine(task: Task, modifier: Modifier = Modifier) {
         Icon(
             imageVector = Icons.Rounded.Schedule,
             contentDescription = null,
-            tint = TextOnAccent.copy(alpha = 0.85f),
+            tint = onCard.copy(alpha = 0.85f),
             modifier = Modifier.size(13.dp),
         )
         Spacer(Modifier.width(6.dp))
         Text(
             text = text,
             style = MaterialTheme.typography.labelMedium,
-            color = TextOnAccent.copy(alpha = 0.82f),
+            color = onCard.copy(alpha = 0.82f),
         )
     }
 }
 
 @Composable
-private fun TaskTag(text: String, modifier: Modifier = Modifier) {
+private fun TaskTag(
+    text: String,
+    onCard: Color,
+    onCardScrim: Color,
+    onCardBorder: Color,
+    modifier: Modifier = Modifier,
+) {
     Text(
         text = text,
         style = MaterialTheme.typography.labelMedium,
-        color = TextOnAccent,
+        color = onCard,
         modifier = modifier
             .clip(CircleShape)
-            .background(OnCardScrim)
-            .border(width = 1.dp, color = OnCardBorder, shape = CircleShape)
+            .background(onCardScrim)
+            .border(width = 1.dp, color = onCardBorder, shape = CircleShape)
             .padding(horizontal = 11.dp, vertical = 5.dp),
     )
 }
 
 @Composable
-private fun StatusTag(status: TaskStatus, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun StatusTag(
+    status: TaskStatus,
+    onClick: () -> Unit,
+    onCard: Color,
+    onCardScrim: Color,
+    onCardBorder: Color,
+    modifier: Modifier = Modifier,
+) {
     Row(
         modifier = modifier
             .clip(CircleShape)
-            .background(OnCardScrim)
-            .border(width = 1.dp, color = OnCardBorder, shape = CircleShape)
+            .background(onCardScrim)
+            .border(width = 1.dp, color = onCardBorder, shape = CircleShape)
             .clickable(onClick = onClick)
             .padding(horizontal = 11.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -242,7 +325,7 @@ private fun StatusTag(status: TaskStatus, onClick: () -> Unit, modifier: Modifie
         Text(
             text = stringResource(status.labelRes()),
             style = MaterialTheme.typography.labelMedium,
-            color = TextOnAccent,
+            color = onCard,
         )
     }
 }
@@ -253,16 +336,21 @@ private fun TaskOverflowMenu(
     onSetStatus: (Task, TaskStatus) -> Unit,
     onTogglePin: (Task) -> Unit,
     onDelete: (Task) -> Unit,
+    onSetReminder: (Task, Long?) -> Unit,
+    onShare: () -> Unit,
+    tint: Color,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var showReminderDialog by remember { mutableStateOf(false) }
+    val permissionState = rememberReminderPermissionState()
 
     Box(modifier = modifier) {
-        IconButton(onClick = { expanded = true }, modifier = Modifier.size(28.dp)) {
+        IconButton(onClick = { expanded = true }, modifier = Modifier.size(26.dp)) {
             Icon(
                 imageVector = Icons.Rounded.MoreVert,
                 contentDescription = stringResource(R.string.cd_task_options),
-                tint = TextOnAccent.copy(alpha = 0.85f),
+                tint = tint,
                 modifier = Modifier.size(18.dp),
             )
         }
@@ -321,6 +409,65 @@ private fun TaskOverflowMenu(
                 },
             )
             DropdownMenuItem(
+                text = {
+                    Text(
+                        stringResource(
+                            if (task.reminderAt != null) {
+                                R.string.action_change_reminder
+                            } else {
+                                R.string.action_set_reminder
+                            },
+                        ),
+                    )
+                },
+                onClick = {
+                    expanded = false
+                    permissionState.requestIfNeeded()
+                    showReminderDialog = true
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = if (task.reminderAt != null) {
+                            Icons.Rounded.NotificationsActive
+                        } else {
+                            Icons.Rounded.NotificationsNone
+                        },
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                },
+            )
+            if (task.reminderAt != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_clear_reminder)) },
+                    onClick = {
+                        expanded = false
+                        onSetReminder(task, null)
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Rounded.NotificationsNone,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    },
+                )
+            }
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_share)) },
+                onClick = {
+                    expanded = false
+                    onShare()
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Rounded.Share,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                },
+            )
+            DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_delete)) },
                 onClick = {
                     expanded = false
@@ -336,6 +483,17 @@ private fun TaskOverflowMenu(
             )
         }
     }
+
+
+    ReminderDialogFlow(
+        show = showReminderDialog,
+        initialMillis = task.reminderAt,
+        onDismiss = { showReminderDialog = false },
+        onPicked = { millis ->
+            onSetReminder(task, millis)
+            showReminderDialog = false
+        },
+    )
 }
 
 @Composable
