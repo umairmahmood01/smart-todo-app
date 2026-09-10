@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,6 +43,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.umair.smarttodo.R
+import com.umair.smarttodo.domain.Task
 import kotlinx.coroutines.delay
 import com.umair.smarttodo.ui.theme.HairlineBorder
 import com.umair.smarttodo.ui.theme.NeonPurple
@@ -55,18 +58,31 @@ import com.umair.smarttodo.ui.theme.TextPrimary
 private const val FocusDelayMillis = 180L
 
 /**
- * Raw text in, plus an optional reminder instant: no category picker, because
- * categorization is automatic.
+ * Raw text and optional details in, plus an optional reminder instant: no category
+ * picker, because categorization is automatic (re-run server-side on every save,
+ * including edits).
+ *
+ * Doubles as both the "add task" and "edit task" surface: pass [task] as `null` for
+ * create mode (empty fields, title "New task", no reminder editing here — the reminder
+ * is set immediately after creation) or a non-null [Task] for edit mode (fields
+ * pre-filled from [task], title "Edit task"). Edit mode has no reminder row: reminders on
+ * an existing task are already editable from its card's overflow menu, and the "Save"
+ * action here only ever calls back with `(rawText, details, reminderAt = null)` — callers
+ * should ignore the third value in edit mode and route to their own edit function instead
+ * of their add function.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTaskSheet(
     onDismiss: () -> Unit,
-    onSave: (rawText: String, reminderAt: Long?) -> Unit,
+    onSave: (rawText: String, details: String?, reminderAt: Long?) -> Unit,
     modifier: Modifier = Modifier,
+    task: Task? = null,
 ) {
+    val isEditMode = task != null
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var text by remember { mutableStateOf("") }
+    var text by remember { mutableStateOf(task?.rawText.orEmpty()) }
+    var details by remember { mutableStateOf(task?.details.orEmpty()) }
     var reminderAt by remember { mutableStateOf<Long?>(null) }
     val focusRequester = remember { FocusRequester() }
 
@@ -92,7 +108,9 @@ fun AddTaskSheet(
                 .imePadding(),
         ) {
             Text(
-                text = stringResource(R.string.add_task_title),
+                text = stringResource(
+                    if (isEditMode) R.string.edit_task_title else R.string.add_task_title,
+                ),
                 style = MaterialTheme.typography.titleMedium,
                 color = TextPrimary,
             )
@@ -100,7 +118,7 @@ fun AddTaskSheet(
             AddTaskField(
                 value = text,
                 onValueChange = { text = it },
-                onSubmit = { submit(text, reminderAt, onSave, onDismiss) },
+                onSubmit = { submit(text, details, reminderAt, onSave, onDismiss) },
                 focusRequester = focusRequester,
             )
             Spacer(Modifier.height(10.dp))
@@ -110,10 +128,17 @@ fun AddTaskSheet(
                 color = TextMuted,
             )
             Spacer(Modifier.height(14.dp))
-            ReminderRow(
-                reminderAt = reminderAt,
-                onReminderChange = { reminderAt = it },
+            DetailsField(
+                value = details,
+                onValueChange = { details = it },
             )
+            if (!isEditMode) {
+                Spacer(Modifier.height(14.dp))
+                ReminderRow(
+                    reminderAt = reminderAt,
+                    onReminderChange = { reminderAt = it },
+                )
+            }
             Spacer(Modifier.height(18.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -128,7 +153,7 @@ fun AddTaskSheet(
                 }
                 Spacer(Modifier.padding(horizontal = 4.dp))
                 Button(
-                    onClick = { submit(text, reminderAt, onSave, onDismiss) },
+                    onClick = { submit(text, details, reminderAt, onSave, onDismiss) },
                     enabled = text.isNotBlank(),
                     shape = RoundedCornerShape(SmartTodoDimens.SurfaceRadius),
                     colors = ButtonDefaults.buttonColors(
@@ -140,6 +165,48 @@ fun AddTaskSheet(
                 }
             }
         }
+    }
+}
+
+/**
+ * Optional multi-line notes field: 2-4 lines visible, scrolls internally beyond that
+ * rather than growing the sheet without bound.
+ */
+@Composable
+private fun DetailsField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp, max = 108.dp)
+            .clip(RoundedCornerShape(SmartTodoDimens.SurfaceRadius))
+            .background(SurfaceMuted)
+            .border(
+                width = 1.dp,
+                color = HairlineBorder,
+                shape = RoundedCornerShape(SmartTodoDimens.SurfaceRadius),
+            )
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        if (value.isEmpty()) {
+            Text(
+                text = stringResource(R.string.add_task_details_placeholder),
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextPlaceholder,
+            )
+        }
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            textStyle = MaterialTheme.typography.bodyMedium.copy(color = TextPrimary),
+            cursorBrush = SolidColor(NeonPurple),
+            minLines = 2,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
@@ -187,11 +254,12 @@ private fun AddTaskField(
 
 private fun submit(
     text: String,
+    details: String,
     reminderAt: Long?,
-    onSave: (String, Long?) -> Unit,
+    onSave: (String, String?, Long?) -> Unit,
     onDismiss: () -> Unit,
 ) {
     if (text.isBlank()) return
-    onSave(text, reminderAt)
+    onSave(text, details.trim().ifBlank { null }, reminderAt)
     onDismiss()
 }

@@ -8,6 +8,7 @@ import com.umair.smarttodo.data.reminder.ReminderScheduler
 import com.umair.smarttodo.di.IoDispatcher
 import com.umair.smarttodo.domain.Category
 import com.umair.smarttodo.domain.TaskList
+import com.umair.smarttodo.domain.TaskListItem
 import com.umair.smarttodo.domain.TaskListRepository
 import com.umair.smarttodo.domain.TaskSort
 import javax.inject.Inject
@@ -59,13 +60,15 @@ class TaskListRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Creates a new list header plus any non-blank [itemTexts], and returns the generated
-     * list id.
+     * Creates a new list header plus any non-blank [items], and returns the generated list id.
      *
-     * Blank item texts are dropped rather than persisted as empty checklist lines - same
-     * "trim, then ignore blank" treatment [TaskRepositoryImpl.addTask] gives task text.
+     * Each supplied [TaskListItem] contributes only its `text` (trimmed, blank ones dropped -
+     * same "trim, then ignore blank" treatment [TaskRepositoryImpl.addTask] gives task text)
+     * and `quantity`; per the [TaskListRepository.createTaskList] contract, a caller-supplied
+     * `id` or `isChecked` is ignored - every created item starts unchecked with a freshly
+     * generated id regardless of what the caller passed in those two fields.
      */
-    override suspend fun createTaskList(title: String, category: Category, itemTexts: List<String>): Long =
+    override suspend fun createTaskList(title: String, category: Category, items: List<TaskListItem>): Long =
         withContext(ioDispatcher) {
             val listId = dao.insertTaskList(
                 TaskListEntity(
@@ -75,23 +78,39 @@ class TaskListRepositoryImpl @Inject constructor(
                     reminderAt = null,
                 ),
             )
-            val items = itemTexts.map { it.trim() }.filter { it.isNotEmpty() }
-            if (items.isNotEmpty()) {
-                dao.insertItems(items.map { text -> TaskListItemEntity(listId = listId, text = text) })
+            val entities = items.mapNotNull { item ->
+                val trimmedText = item.text.trim()
+                if (trimmedText.isEmpty()) {
+                    null
+                } else {
+                    TaskListItemEntity(listId = listId, text = trimmedText, quantity = item.quantity)
+                }
+            }
+            if (entities.isNotEmpty()) {
+                dao.insertItems(entities)
             }
             listId
         }
 
-    override suspend fun addItem(listId: Long, text: String) {
+    override suspend fun addItem(listId: Long, text: String, quantity: String?) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
         withContext(ioDispatcher) {
-            dao.insertItem(TaskListItemEntity(listId = listId, text = trimmed))
+            dao.insertItem(TaskListItemEntity(listId = listId, text = trimmed, quantity = quantity))
         }
     }
 
     override suspend fun setItemChecked(listId: Long, itemId: Long, checked: Boolean) {
         withContext(ioDispatcher) { dao.setItemChecked(itemId, checked) }
+    }
+
+    /**
+     * Sets or clears the quantity on item [itemId]. [listId] is accepted for interface
+     * symmetry with the rest of this repository's item mutations; the DAO update is already
+     * scoped by item id alone, so no extra list-ownership check is performed here.
+     */
+    override suspend fun setItemQuantity(listId: Long, itemId: Long, quantity: String?) {
+        withContext(ioDispatcher) { dao.updateItemQuantity(itemId, quantity) }
     }
 
     override suspend fun removeItem(listId: Long, itemId: Long) {

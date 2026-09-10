@@ -39,6 +39,13 @@ data class TaskEntity(
     @ColumnInfo(name = "normalizedEnglishText")
     val normalizedEnglishText: String? = null,
 
+    /**
+     * Optional longer free-text notes/description, exactly what the user typed. Never touched
+     * by enrichment. Added in schema version 3; see `Migrations.MIGRATION_2_3`.
+     */
+    @ColumnInfo(name = "details")
+    val details: String? = null,
+
     @ColumnInfo(name = "category")
     val category: Category,
 

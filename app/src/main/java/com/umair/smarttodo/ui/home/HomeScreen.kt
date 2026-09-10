@@ -87,15 +87,20 @@ fun HomeRoute(
         onSortChange = viewModel::onSortChange,
         onClearFilters = viewModel::onClearFilters,
         onAddTask = viewModel::onAddTask,
+        onEditTask = viewModel::onEditTask,
         onToggleStatusOf = viewModel::onToggleStatusOf,
         onSetStatus = viewModel::onSetStatus,
         onTogglePin = viewModel::onTogglePin,
         onDelete = viewModel::onDelete,
         onSetTaskReminder = viewModel::onSetTaskReminder,
         onAddTaskList = viewModel::onAddTaskList,
+        previewCategory = viewModel::previewCategory,
         onToggleListItem = viewModel::onToggleListItem,
         onAddListItem = viewModel::onAddListItem,
         onRemoveListItem = viewModel::onRemoveListItem,
+        onSetItemQuantity = { taskList, item, quantity ->
+            viewModel.onSetItemQuantity(taskList.id, item.id, quantity)
+        },
         onDeleteList = viewModel::onDeleteList,
         onSetListReminder = viewModel::onSetListReminder,
         modifier = modifier,
@@ -110,22 +115,26 @@ fun HomeScreen(
     onToggleStatus: (TaskStatus) -> Unit,
     onSortChange: (TaskSort) -> Unit,
     onClearFilters: () -> Unit,
-    onAddTask: (String, Long?) -> Unit,
+    onAddTask: (String, String?, Long?) -> Unit,
+    onEditTask: (Long, String, String?) -> Unit,
     onToggleStatusOf: (Task) -> Unit,
     onSetStatus: (Task, TaskStatus) -> Unit,
     onTogglePin: (Task) -> Unit,
     onDelete: (Task) -> Unit,
     onSetTaskReminder: (Task, Long?) -> Unit,
-    onAddTaskList: (String, List<String>, Long?) -> Unit,
+    onAddTaskList: (String, List<Pair<String, String?>>, Long?) -> Unit,
+    previewCategory: (String) -> Category,
     onToggleListItem: (TaskList, TaskListItem) -> Unit,
-    onAddListItem: (TaskList, String) -> Unit,
+    onAddListItem: (TaskList, String, String?) -> Unit,
     onRemoveListItem: (TaskList, TaskListItem) -> Unit,
+    onSetItemQuantity: (TaskList, TaskListItem, String?) -> Unit,
     onDeleteList: (TaskList) -> Unit,
     onSetListReminder: (TaskList, Long?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var addSheetStep by rememberSaveable { mutableStateOf(AddSheetStep.NONE) }
     var openListId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var editingTaskId by rememberSaveable { mutableStateOf<Long?>(null) }
     val screenPadding = SmartTodoDimens.ScreenPadding
 
     Box(
@@ -213,6 +222,7 @@ fun HomeScreen(
                             onTogglePin = onTogglePin,
                             onDelete = onDelete,
                             onSetReminder = onSetTaskReminder,
+                            onEdit = { editingTaskId = it.id },
                             modifier = Modifier.padding(horizontal = screenPadding),
                         )
 
@@ -263,8 +273,8 @@ fun HomeScreen(
 
         AddSheetStep.TASK -> AddTaskSheet(
             onDismiss = { addSheetStep = AddSheetStep.NONE },
-            onSave = { rawText, reminderAt ->
-                onAddTask(rawText, reminderAt)
+            onSave = { rawText, details, reminderAt ->
+                onAddTask(rawText, details, reminderAt)
                 addSheetStep = AddSheetStep.NONE
             },
         )
@@ -275,6 +285,7 @@ fun HomeScreen(
                 onAddTaskList(title, items, reminderAt)
                 addSheetStep = AddSheetStep.NONE
             },
+            previewCategory = previewCategory,
         )
 
         AddSheetStep.NONE -> Unit
@@ -291,8 +302,9 @@ fun HomeScreen(
             taskList = openList,
             onDismiss = { openListId = null },
             onToggleItem = { item -> onToggleListItem(openList, item) },
-            onAddItem = { text -> onAddListItem(openList, text) },
+            onAddItem = { text, quantity -> onAddListItem(openList, text, quantity) },
             onRemoveItem = { item -> onRemoveListItem(openList, item) },
+            onSetItemQuantity = { item, quantity -> onSetItemQuantity(openList, item, quantity) },
             onSetReminder = { atMillis -> onSetListReminder(openList, atMillis) },
             onDelete = {
                 onDeleteList(openList)
@@ -306,6 +318,30 @@ fun HomeScreen(
     LaunchedEffect(openListId, openList) {
         if (openListId != null && openList == null) {
             openListId = null
+        }
+    }
+
+    val editingTask = editingTaskId?.let { id ->
+        state.feedItems
+            .filterIsInstance<HomeFeedItem.TaskEntry>()
+            .map { it.task }
+            .find { it.id == id }
+    }
+    if (editingTask != null) {
+        AddTaskSheet(
+            task = editingTask,
+            onDismiss = { editingTaskId = null },
+            onSave = { rawText, details, _ ->
+                onEditTask(editingTask.id, rawText, details)
+                editingTaskId = null
+            },
+        )
+    }
+    // Same stale-id guard as openListId above: the task may disappear (e.g. deleted)
+    // while its edit sheet is open.
+    LaunchedEffect(editingTaskId, editingTask) {
+        if (editingTaskId != null && editingTask == null) {
+            editingTaskId = null
         }
     }
 }

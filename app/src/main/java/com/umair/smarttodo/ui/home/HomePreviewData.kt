@@ -28,6 +28,8 @@ internal object PreviewData {
             id = 1L,
             rawText = "Website Development",
             normalizedEnglishText = "Create a landing page with React.js for the client.",
+            details = "Hero section, testimonials carousel, and a pricing table. " +
+                "Client wants it mobile-first, dark mode optional.",
             category = Category.CODING,
             status = TaskStatus.IN_PROGRESS,
             isPinned = true,
@@ -45,6 +47,7 @@ internal object PreviewData {
             id = 3L,
             rawText = "Kal client ko report bhejni hai",
             normalizedEnglishText = "Send the report to the client tomorrow.",
+            details = "Include the Q3 numbers and the churn chart.",
             category = Category.WORK,
             status = TaskStatus.TODO,
             createdDate = DEC_01_2024,
@@ -138,16 +141,31 @@ internal class PreviewTaskRepository(
             .toList()
     }
 
-    override suspend fun addTask(rawText: String): Long {
+    override suspend fun addTask(rawText: String, details: String?): Long {
         val nextId = (state.value.maxOfOrNull { it.id } ?: 0L) + 1L
         state.value = state.value + Task(
             id = nextId,
             rawText = rawText,
+            details = details,
             category = Category.OTHER,
             status = TaskStatus.TODO,
             createdDate = System.currentTimeMillis(),
         )
         return nextId
+    }
+
+    // Preview-only: unlike the real implementation, this fake does not re-categorize or
+    // re-queue enrichment on edit, it just updates the two fields in place.
+    override suspend fun updateTask(id: Long, rawText: String, details: String?) {
+        val text = rawText.trim()
+        if (text.isEmpty()) return
+        state.value = state.value.map {
+            if (it.id == id) {
+                it.copy(rawText = text, details = details, normalizedEnglishText = null)
+            } else {
+                it
+            }
+        }
     }
 
     override suspend fun updateStatus(id: Long, status: TaskStatus) {
@@ -191,27 +209,42 @@ internal class PreviewTaskListRepository(
     override suspend fun createTaskList(
         title: String,
         category: Category,
-        itemTexts: List<String>,
+        items: List<TaskListItem>,
     ): Long {
         val nextId = (state.value.maxOfOrNull { it.id } ?: 0L) + 1L
-        val items = itemTexts.mapIndexed { index, text ->
-            TaskListItem(id = index.toLong() + 1L, text = text)
+        // Per the interface contract: only text/quantity are taken from each supplied
+        // item, id and isChecked are always freshly generated / false.
+        val newItems = items.mapIndexed { index, item ->
+            TaskListItem(id = index.toLong() + 1L, text = item.text, quantity = item.quantity)
         }
         state.value = state.value + TaskList(
             id = nextId,
             title = title,
             category = category,
-            items = items,
+            items = newItems,
             createdDate = System.currentTimeMillis(),
         )
         return nextId
     }
 
-    override suspend fun addItem(listId: Long, text: String) {
+    override suspend fun addItem(listId: Long, text: String, quantity: String?) {
         state.value = state.value.map { list ->
             if (list.id != listId) return@map list
             val nextItemId = (list.items.maxOfOrNull { it.id } ?: 0L) + 1L
-            list.copy(items = list.items + TaskListItem(id = nextItemId, text = text))
+            list.copy(
+                items = list.items + TaskListItem(id = nextItemId, text = text, quantity = quantity),
+            )
+        }
+    }
+
+    override suspend fun setItemQuantity(listId: Long, itemId: Long, quantity: String?) {
+        state.value = state.value.map { list ->
+            if (list.id != listId) return@map list
+            list.copy(
+                items = list.items.map { item ->
+                    if (item.id == itemId) item.copy(quantity = quantity) else item
+                },
+            )
         }
     }
 

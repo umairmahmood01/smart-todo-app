@@ -18,9 +18,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.NotificationsNone
+import androidx.compose.material.icons.rounded.Notes
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Share
@@ -65,6 +67,12 @@ private const val DateTimePattern = "dd.MM.yyyy HH:mm"
  * pure UI state. Text, icon and hairline colours all derive from
  * `task.category.visual().contentColor` so they stay readable on every category's
  * gradient (some, like Health & Fitness, use dark text on a light gradient).
+ *
+ * Tapping anywhere on the card body (outside the status pill and the overflow menu, both
+ * of which own their own `clickable`s and consume the tap before it reaches this one)
+ * calls [onEdit] to open the same sheet used for adding a task, pre-filled and in edit
+ * mode. The overflow menu also has an explicit "Edit" item that does the same thing, for
+ * anyone who doesn't discover the tap.
  */
 @Composable
 fun TaskCard(
@@ -74,6 +82,7 @@ fun TaskCard(
     onTogglePin: (Task) -> Unit,
     onDelete: (Task) -> Unit,
     onSetReminder: (Task, Long?) -> Unit,
+    onEdit: (Task) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val visual = task.category.visual()
@@ -89,6 +98,7 @@ fun TaskCard(
             .fillMaxWidth()
             .clip(shape)
             .background(visual.brush)
+            .clickable { onEdit(task) }
             .drawWithCache {
                 // Soft bloom in the top-right corner of the card, tinted with the
                 // card's own content colour so it reads on both light and dark cards.
@@ -129,6 +139,17 @@ fun TaskCard(
                     )
                 }
                 Spacer(Modifier.width(10.dp))
+                if (!task.details.isNullOrBlank()) {
+                    Icon(
+                        imageVector = Icons.Rounded.Notes,
+                        contentDescription = stringResource(R.string.cd_has_details),
+                        tint = onCardMuted,
+                        modifier = Modifier
+                            .padding(top = 3.dp)
+                            .size(14.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                }
                 Text(
                     text = rememberFormattedDate(task.createdDate),
                     style = MaterialTheme.typography.labelMedium,
@@ -142,6 +163,7 @@ fun TaskCard(
                     onTogglePin = onTogglePin,
                     onDelete = onDelete,
                     onSetReminder = onSetReminder,
+                    onEdit = onEdit,
                     onShare = { context.shareAsPlainText(task.toShareText()) },
                     tint = onCardMuted,
                 )
@@ -337,6 +359,7 @@ private fun TaskOverflowMenu(
     onTogglePin: (Task) -> Unit,
     onDelete: (Task) -> Unit,
     onSetReminder: (Task, Long?) -> Unit,
+    onEdit: (Task) -> Unit,
     onShare: () -> Unit,
     tint: Color,
     modifier: Modifier = Modifier,
@@ -355,6 +378,20 @@ private fun TaskOverflowMenu(
             )
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_edit)) },
+                onClick = {
+                    expanded = false
+                    onEdit(task)
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Rounded.Edit,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                },
+            )
             TaskStatus.entries.forEach { status ->
                 DropdownMenuItem(
                     text = {

@@ -106,6 +106,19 @@ class FakeTaskListDao : TaskListDao {
         return updated
     }
 
+    override suspend fun updateItemQuantity(itemId: Long, quantity: String?): Int {
+        var updated = 0
+        itemRows.value = itemRows.value.map { row ->
+            if (row.id == itemId) {
+                updated++
+                row.copy(quantity = quantity)
+            } else {
+                row
+            }
+        }
+        return updated
+    }
+
     override suspend fun deleteItem(itemId: Long): Int {
         val before = itemRows.value.size
         itemRows.value = itemRows.value.filterNot { it.id == itemId }

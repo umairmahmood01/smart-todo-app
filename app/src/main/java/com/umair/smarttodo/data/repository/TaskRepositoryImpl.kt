@@ -80,14 +80,16 @@ class TaskRepositoryImpl @Inject constructor(
      *    `normalizedEnglishText`. With no connectivity, no configuration, or a service
      *    outage, step two simply never lands and the task stays exactly as step one left it.
      *
-     * Blank input is ignored rather than persisted as an empty row.
+     * Blank input is ignored rather than persisted as an empty row. [details] is stored as-is
+     * (no blank-is-no-op rule, matching [updateTask]'s treatment of `details`).
      */
-    override suspend fun addTask(rawText: String): Long {
+    override suspend fun addTask(rawText: String, details: String?): Long {
         val text = rawText.trim()
         if (text.isEmpty()) return 0L
         val entity = TaskEntity(
             rawText = text,
             normalizedEnglishText = null,
+            details = details,
             category = categorizer.categorize(text),
             status = TaskStatus.TODO,
             isPinned = false,
@@ -97,6 +99,25 @@ class TaskRepositoryImpl @Inject constructor(
         val id = withContext(ioDispatcher) { dao.insert(entity) }
         enrichmentScheduler.scheduleEnrichment(taskId = id, rawText = text)
         return id
+    }
+
+    /**
+     * Edits task [id]'s text and details - see [TaskRepository.updateTask] for the full
+     * contract. On a non-blank [rawText] this re-runs the categorizer (an edited task's
+     * category can change exactly as a freshly created one's can), persists the new
+     * `rawText`/`category`/`details` and clears the stale `normalizedEnglishText` as one
+     * atomic DAO call, then re-queues enrichment for the new text so a fresh
+     * translation/category refinement arrives the same way it does after [addTask].
+     *
+     * Every edit re-queues an enrichment job identically to a brand-new task - see this
+     * class's kdoc note on cost/frequency implications.
+     */
+    override suspend fun updateTask(id: Long, rawText: String, details: String?) {
+        val text = rawText.trim()
+        if (text.isEmpty()) return
+        val category = categorizer.categorize(text)
+        withContext(ioDispatcher) { dao.updateTask(id, text, category, details) }
+        enrichmentScheduler.scheduleEnrichment(taskId = id, rawText = text)
     }
 
     override suspend fun updateStatus(id: Long, status: TaskStatus) {

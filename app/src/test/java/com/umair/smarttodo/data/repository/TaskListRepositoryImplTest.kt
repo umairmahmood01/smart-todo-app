@@ -3,6 +3,7 @@ package com.umair.smarttodo.data.repository
 import com.umair.smarttodo.data.local.TaskListEntity
 import com.umair.smarttodo.data.reminder.FakeReminderScheduler
 import com.umair.smarttodo.domain.Category
+import com.umair.smarttodo.domain.TaskListItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -42,7 +43,12 @@ class TaskListRepositoryImplTest {
         val id = repository.createTaskList(
             "  Grocery list  ",
             Category.SHOPPING,
-            listOf("  milk  ", "", "eggs", "   "),
+            listOf(
+                TaskListItem(text = "  milk  "),
+                TaskListItem(text = ""),
+                TaskListItem(text = "eggs"),
+                TaskListItem(text = "   "),
+            ),
         )
 
         val stored = dao.currentLists.single()
@@ -61,6 +67,32 @@ class TaskListRepositoryImplTest {
 
         assertEquals(0, dao.insertItemsCount)
         assertTrue(dao.currentItems.isEmpty())
+    }
+
+    @Test
+    fun `createTaskList persists each item's quantity`() = runTest {
+        repository.createTaskList(
+            "Grocery list",
+            Category.SHOPPING,
+            listOf(TaskListItem(text = "milk", quantity = "2"), TaskListItem(text = "eggs", quantity = null)),
+        )
+
+        val items = dao.currentItems.sortedBy { it.text }
+        assertEquals(listOf("eggs", "milk"), items.map { it.text })
+        assertEquals(listOf(null, "2"), items.map { it.quantity })
+    }
+
+    @Test
+    fun `createTaskList ignores a caller-supplied id and isChecked on input items`() = runTest {
+        repository.createTaskList(
+            "Grocery list",
+            Category.SHOPPING,
+            listOf(TaskListItem(id = 999L, text = "milk", isChecked = true)),
+        )
+
+        val stored = dao.currentItems.single()
+        assertTrue(stored.id != 999L)
+        assertEquals(false, stored.isChecked)
     }
 
     // --- item mutation -------------------------------------------------------------------
@@ -87,8 +119,52 @@ class TaskListRepositoryImplTest {
     }
 
     @Test
+    fun `addItem persists the supplied quantity`() = runTest {
+        val listId = repository.createTaskList("Grocery list", Category.SHOPPING, emptyList())
+
+        repository.addItem(listId, "milk", quantity = "1 kg")
+
+        assertEquals("1 kg", dao.currentItems.single().quantity)
+    }
+
+    @Test
+    fun `addItem defaults quantity to null when omitted`() = runTest {
+        val listId = repository.createTaskList("Grocery list", Category.SHOPPING, emptyList())
+
+        repository.addItem(listId, "milk")
+
+        assertNull(dao.currentItems.single().quantity)
+    }
+
+    // --- setItemQuantity -----------------------------------------------------------------
+
+    @Test
+    fun `setItemQuantity sets the quantity`() = runTest {
+        val listId = repository.createTaskList("Grocery list", Category.SHOPPING, listOf(TaskListItem(text = "milk")))
+        val itemId = dao.currentItems.single().id
+
+        repository.setItemQuantity(listId, itemId, "2 kg")
+
+        assertEquals("2 kg", dao.currentItems.single().quantity)
+    }
+
+    @Test
+    fun `setItemQuantity with null clears the quantity`() = runTest {
+        val listId = repository.createTaskList(
+            "Grocery list",
+            Category.SHOPPING,
+            listOf(TaskListItem(text = "milk", quantity = "2 kg")),
+        )
+        val itemId = dao.currentItems.single().id
+
+        repository.setItemQuantity(listId, itemId, null)
+
+        assertNull(dao.currentItems.single().quantity)
+    }
+
+    @Test
     fun `setItemChecked reaches the dao`() = runTest {
-        val listId = repository.createTaskList("Grocery list", Category.SHOPPING, listOf("milk"))
+        val listId = repository.createTaskList("Grocery list", Category.SHOPPING, listOf(TaskListItem(text = "milk")))
         val itemId = dao.currentItems.single().id
 
         repository.setItemChecked(listId, itemId, true)
@@ -98,7 +174,11 @@ class TaskListRepositoryImplTest {
 
     @Test
     fun `removeItem deletes only that item`() = runTest {
-        val listId = repository.createTaskList("Grocery list", Category.SHOPPING, listOf("milk", "eggs"))
+        val listId = repository.createTaskList(
+            "Grocery list",
+            Category.SHOPPING,
+            listOf(TaskListItem(text = "milk"), TaskListItem(text = "eggs")),
+        )
         val (milk, eggs) = dao.currentItems
 
         repository.removeItem(listId, milk.id)
@@ -135,7 +215,11 @@ class TaskListRepositoryImplTest {
 
     @Test
     fun `delete removes the list and cascades to its items`() = runTest {
-        val listId = repository.createTaskList("Grocery list", Category.SHOPPING, listOf("milk", "eggs"))
+        val listId = repository.createTaskList(
+            "Grocery list",
+            Category.SHOPPING,
+            listOf(TaskListItem(text = "milk"), TaskListItem(text = "eggs")),
+        )
 
         repository.delete(listId)
 

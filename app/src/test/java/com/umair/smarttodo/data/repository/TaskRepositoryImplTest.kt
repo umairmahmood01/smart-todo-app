@@ -97,6 +97,93 @@ class TaskRepositoryImplTest {
         assertEquals(0L, repository.addTask("      "))
     }
 
+    @Test
+    fun `addTask defaults details to null when omitted`() = runTest {
+        repository.addTask("buy milk")
+
+        assertNull(dao.inserted.single().details)
+    }
+
+    @Test
+    fun `addTask stores details as-is, including blank, without coercing to null`() = runTest {
+        repository.addTask("buy milk", details = "2% and whole")
+
+        assertEquals("2% and whole", dao.inserted.single().details)
+    }
+
+    @Test
+    fun `addTask stores blank details as-is rather than coercing to null`() = runTest {
+        repository.addTask("buy milk", details = "   ")
+
+        assertEquals("   ", dao.inserted.single().details)
+    }
+
+    // --- updateTask --------------------------------------------------------------------
+
+    @Test
+    fun `updateTask re-categorizes the new text`() = runTest {
+        dao.setRows(entity(id = 3L, rawText = "old text", category = Category.OTHER))
+        categorizer.nextCategory = Category.FINANCE
+
+        repository.updateTask(3L, "pay the bill", details = null)
+
+        assertEquals("pay the bill", categorizer.lastInput)
+        assertEquals(Category.FINANCE, dao.currentRows.single().category)
+        assertEquals("pay the bill", dao.currentRows.single().rawText)
+    }
+
+    @Test
+    fun `updateTask clears normalizedEnglishText`() = runTest {
+        dao.setRows(
+            entity(id = 3L, rawText = "old text", category = Category.OTHER)
+                .copy(normalizedEnglishText = "stale normalization"),
+        )
+
+        repository.updateTask(3L, "new text", details = null)
+
+        assertNull(dao.currentRows.single().normalizedEnglishText)
+    }
+
+    @Test
+    fun `updateTask re-queues enrichment for the edited text`() = runTest {
+        dao.setRows(entity(id = 3L, rawText = "old text", category = Category.OTHER))
+
+        repository.updateTask(3L, "  new text  ", details = null)
+
+        assertEquals(listOf(3L to "new text"), scheduler.scheduled)
+    }
+
+    @Test
+    fun `updateTask persists details as-is, including blank`() = runTest {
+        dao.setRows(entity(id = 3L, rawText = "old text", category = Category.OTHER))
+
+        repository.updateTask(3L, "new text", details = "   ")
+
+        assertEquals("   ", dao.currentRows.single().details)
+    }
+
+    @Test
+    fun `updateTask persists a null details, clearing any previous value`() = runTest {
+        dao.setRows(entity(id = 3L, rawText = "old text", category = Category.OTHER))
+        repository.updateTask(3L, "new text", details = "some notes")
+
+        repository.updateTask(3L, "new text", details = null)
+
+        assertNull(dao.currentRows.single().details)
+    }
+
+    @Test
+    fun `updateTask with blank rawText is a true no-op`() = runTest {
+        val original = entity(id = 3L, rawText = "old text", category = Category.OTHER)
+        dao.setRows(original)
+
+        repository.updateTask(3L, "   ", details = "notes")
+
+        assertEquals(original, dao.currentRows.single())
+        assertEquals(0, dao.updateTaskCallCount)
+        assertTrue(scheduler.scheduled.isEmpty())
+    }
+
     // --- observeTasks ----------------------------------------------------------------
 
     @Test
@@ -227,13 +314,13 @@ class TaskRepositoryImplTest {
     )
 }
 
-/** Categorizer that always answers [category] and remembers what it was asked. */
-private class RecordingCategorizer(private val category: Category) : TaskCategorizer {
+/** Categorizer that always answers [nextCategory] and remembers what it was asked. */
+private class RecordingCategorizer(var nextCategory: Category) : TaskCategorizer {
     var lastInput: String? = null
         private set
 
     override fun categorize(rawText: String): Category {
         lastInput = rawText
-        return category
+        return nextCategory
     }
 }

@@ -76,6 +76,15 @@ interface TaskListDao {
     suspend fun setItemChecked(itemId: Long, checked: Boolean): Int
 
     /**
+     * Sets or clears the quantity on a single item, touching only that column - same pattern
+     * as [updateReminder] / [TaskDao.updateReminder].
+     *
+     * @return the number of rows changed: `1` normally, `0` when [itemId] does not exist.
+     */
+    @Query("UPDATE task_list_items SET quantity = :quantity WHERE id = :itemId")
+    suspend fun updateItemQuantity(itemId: Long, quantity: String?): Int
+
+    /**
      * Deletes a single checklist item.
      *
      * @return the number of rows changed: `1` normally, `0` when [itemId] does not exist.

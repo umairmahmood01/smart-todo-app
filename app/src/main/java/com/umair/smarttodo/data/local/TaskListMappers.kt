@@ -22,6 +22,7 @@ fun TaskListWithItems.toDomain(): TaskList = TaskList(
 fun TaskListItemEntity.toDomain(): TaskListItem = TaskListItem(
     id = id,
     text = text,
+    quantity = quantity,
     isChecked = isChecked,
 )
 
@@ -50,6 +51,7 @@ fun TaskListItem.toEntity(listId: Long): TaskListItemEntity = TaskListItemEntity
     id = id,
     listId = listId,
     text = text,
+    quantity = quantity,
     isChecked = isChecked,
 )
 

@@ -82,6 +82,28 @@ interface TaskDao {
     @Update
     suspend fun update(task: TaskEntity)
 
+    /**
+     * Applies an edit to [rawText]/[category]/[details] as a single logical unit and clears
+     * the now-stale `normalizedEnglishText` back to `null`, touching exactly these four
+     * columns. Does not touch `status`, `isPinned`, `reminderAt` or `createdDate` - same
+     * "touch only what changed" discipline as [applyEnrichment] / [updateReminder], except
+     * here the four columns change together atomically because they are one semantic edit
+     * operation, not independent concurrent-safe partial updates.
+     *
+     * @return the number of rows changed: `1` normally, `0` when [id] does not exist.
+     */
+    @Query(
+        """
+        UPDATE tasks
+        SET rawText = :rawText,
+            category = :category,
+            details = :details,
+            normalizedEnglishText = NULL
+        WHERE id = :id
+        """
+    )
+    suspend fun updateTask(id: Long, rawText: String, category: Category, details: String?): Int
+
     /** Sets the workflow status of a single row. No-op when [id] does not exist. */
     @Query("UPDATE tasks SET status = :status WHERE id = :id")
     suspend fun updateStatus(id: Long, status: TaskStatus)

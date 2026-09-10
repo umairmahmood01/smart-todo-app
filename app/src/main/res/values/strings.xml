@@ -53,15 +53,19 @@
     <string name="action_mark_as">Mark as %1$s</string>
     <string name="action_pin">Pin task</string>
     <string name="action_unpin">Unpin task</string>
+    <string name="action_edit">Edit</string>
     <string name="action_delete">Delete task</string>
     <string name="action_share">Share</string>
     <string name="cd_reminder_active">Reminder set</string>
+    <string name="cd_has_details">Has notes</string>
 
     <!-- Add task sheet -->
     <string name="cd_add_task">Add a task</string>
     <string name="add_task_title">New task</string>
+    <string name="edit_task_title">Edit task</string>
     <string name="add_task_placeholder">What needs doing?</string>
     <string name="add_task_hint">Write it in any language — the category is chosen for you.</string>
+    <string name="add_task_details_placeholder">Add notes (optional)</string>
     <string name="action_save">Save</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_next">Next</string>
@@ -85,9 +89,13 @@
     <string name="add_list_title_placeholder">e.g. Grocery list</string>
     <string name="add_list_items_label">Items</string>
     <string name="add_list_item_placeholder">Add an item…</string>
+    <string name="add_list_item_quantity_placeholder">qty</string>
     <string name="action_add_item">Add item</string>
     <string name="action_remove_item">Remove item</string>
     <string name="list_progress_format">%1$d/%2$d done</string>
+    <string name="list_item_quantity_format">— %1$s</string>
+    <string name="action_add_quantity">+ qty</string>
+    <string name="cd_edit_quantity">Edit quantity</string>
 
     <!-- Empty states -->
     <string name="empty_title">No tasks yet</string>

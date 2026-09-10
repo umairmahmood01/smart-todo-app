@@ -39,6 +39,14 @@ data class TaskListItemEntity(
     @ColumnInfo(name = "text")
     val text: String,
 
+    /**
+     * Optional free text, not a structured number (e.g. "2", "1 kg", "500g", "a dozen").
+     * `null` means no quantity was given. Added in schema version 3; see
+     * `Migrations.MIGRATION_2_3`.
+     */
+    @ColumnInfo(name = "quantity")
+    val quantity: String? = null,
+
     @ColumnInfo(name = "isChecked", defaultValue = "0")
     val isChecked: Boolean = false,
 )

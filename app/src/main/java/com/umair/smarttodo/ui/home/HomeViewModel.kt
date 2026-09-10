@@ -155,20 +155,31 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * Raw text in, categorization is the data layer job, not the UI job.
+     * Raw text and optional details in, categorization is the data layer job, not the UI
+     * job.
      *
      * [reminderAt], when non-null, is the instant the user picked in the "Remind me" row
      * of [com.umair.smarttodo.ui.home.components.AddTaskSheet].
      */
-    fun onAddTask(rawText: String, reminderAt: Long? = null) {
+    fun onAddTask(rawText: String, details: String? = null, reminderAt: Long? = null) {
         val text = rawText.trim()
         if (text.isEmpty()) return
         viewModelScope.launch {
-            val id = repository.addTask(text)
+            val id = repository.addTask(text, details)
             if (id != 0L && reminderAt != null) {
                 repository.setReminder(id, reminderAt)
             }
         }
+    }
+
+    /**
+     * Edits an existing task's text and details. A thin passthrough: category
+     * re-categorization, clearing the now-stale [Task.normalizedEnglishText], and
+     * re-queuing enrichment for the new text are all handled by
+     * [TaskRepository.updateTask] itself — see its KDoc for the full contract.
+     */
+    fun onEditTask(id: Long, rawText: String, details: String?) {
+        viewModelScope.launch { repository.updateTask(id, rawText, details) }
     }
 
     /** Cycles To Do to In Progress to Done to To Do. */
@@ -206,19 +217,41 @@ class HomeViewModel @Inject constructor(
      * [reminderAt], when non-null, is applied immediately after creation: unlike
      * [onAddTask], this works cleanly because [TaskListRepository.createTaskList]
      * returns the new id.
+     *
+     * [items] carries each draft row's (text, quantity) pair exactly as typed in
+     * [com.umair.smarttodo.ui.home.components.AddTaskListSheet]; blank texts are dropped
+     * and quantities are trimmed to `null` when blank, the same "trim, or null if blank"
+     * treatment [onAddTask] gives [Task.details].
      */
-    fun onAddTaskList(title: String, itemTexts: List<String>, reminderAt: Long? = null) {
+    fun onAddTaskList(
+        title: String,
+        items: List<Pair<String, String?>>,
+        reminderAt: Long? = null,
+    ) {
         val trimmedTitle = title.trim()
         if (trimmedTitle.isEmpty()) return
-        val items = itemTexts.map { it.trim() }.filter { it.isNotEmpty() }
+        val listItems = items.mapNotNull { (text, quantity) ->
+            val trimmedText = text.trim()
+            if (trimmedText.isEmpty()) return@mapNotNull null
+            TaskListItem(text = trimmedText, quantity = quantity?.trim()?.ifBlank { null })
+        }
         viewModelScope.launch {
             val category = taskCategorizer.categorize(trimmedTitle)
-            val newId = taskListRepository.createTaskList(trimmedTitle, category, items)
+            val newId = taskListRepository.createTaskList(trimmedTitle, category, listItems)
             if (reminderAt != null) {
                 taskListRepository.setReminder(newId, reminderAt)
             }
         }
     }
+
+    /**
+     * Pure passthrough to [TaskCategorizer], exposed so
+     * [com.umair.smarttodo.ui.home.components.AddTaskListSheet] can preview which category
+     * a not-yet-created list's title will land in — e.g. to decide whether to show
+     * shopping-list quantity fields and grocery emoji before Save is even tapped — without
+     * putting any categorization logic in the UI layer itself.
+     */
+    fun previewCategory(title: String): Category = taskCategorizer.categorize(title)
 
     fun onToggleListItem(taskList: TaskList, item: TaskListItem) {
         viewModelScope.launch {
@@ -226,10 +259,19 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun onAddListItem(taskList: TaskList, text: String) {
+    fun onAddListItem(taskList: TaskList, text: String, quantity: String? = null) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
-        viewModelScope.launch { taskListRepository.addItem(taskList.id, trimmed) }
+        viewModelScope.launch {
+            taskListRepository.addItem(taskList.id, trimmed, quantity?.trim()?.ifBlank { null })
+        }
+    }
+
+    /** Sets, or with `quantity = null` clears, the quantity on one list item. */
+    fun onSetItemQuantity(listId: Long, itemId: Long, quantity: String?) {
+        viewModelScope.launch {
+            taskListRepository.setItemQuantity(listId, itemId, quantity?.trim()?.ifBlank { null })
+        }
     }
 
     fun onRemoveListItem(taskList: TaskList, item: TaskListItem) {

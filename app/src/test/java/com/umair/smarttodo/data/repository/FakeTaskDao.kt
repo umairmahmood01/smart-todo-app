@@ -78,6 +78,29 @@ class FakeTaskDao : TaskDao {
         rows.value = rows.value.map { if (it.id == task.id) task else it }
     }
 
+    /** How many rows [updateTask] actually changed, summed across every call. */
+    var updateTaskCallCount: Int = 0
+        private set
+
+    override suspend fun updateTask(id: Long, rawText: String, category: Category, details: String?): Int {
+        updateTaskCallCount++
+        var updated = 0
+        rows.value = rows.value.map { row ->
+            if (row.id == id) {
+                updated++
+                row.copy(
+                    rawText = rawText,
+                    category = category,
+                    details = details,
+                    normalizedEnglishText = null,
+                )
+            } else {
+                row
+            }
+        }
+        return updated
+    }
+
     override suspend fun updateStatus(id: Long, status: TaskStatus) {
         rows.value = rows.value.map { if (it.id == id) it.copy(status = status) else it }
     }

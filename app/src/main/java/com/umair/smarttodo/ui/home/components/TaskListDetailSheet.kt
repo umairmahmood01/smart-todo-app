@@ -52,7 +52,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.umair.smarttodo.R
+import com.umair.smarttodo.domain.Category
 import com.umair.smarttodo.domain.TaskList
 import com.umair.smarttodo.domain.TaskListItem
 import com.umair.smarttodo.ui.home.checkedCount
@@ -70,6 +72,11 @@ import com.umair.smarttodo.ui.theme.TextPrimary
  * calls setItemChecked through onToggleItem), an add-item row, and a delete button per
  * item. The overflow menu offers share, reminder and delete for the whole list, mirroring
  * TaskListCard's card-level menu.
+ *
+ * When [TaskList.category] is [Category.SHOPPING], each item also shows a small grocery
+ * emoji (looked up from its text, purely presentational — see [groceryItemEmoji]) and its
+ * quantity, if any, tappable to edit inline via [onSetItemQuantity]. Non-shopping lists
+ * show neither — quantity would be meaningless clutter on e.g. a packing list.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,14 +84,17 @@ fun TaskListDetailSheet(
     taskList: TaskList,
     onDismiss: () -> Unit,
     onToggleItem: (TaskListItem) -> Unit,
-    onAddItem: (String) -> Unit,
+    onAddItem: (text: String, quantity: String?) -> Unit,
     onRemoveItem: (TaskListItem) -> Unit,
+    onSetItemQuantity: (TaskListItem, String?) -> Unit,
     onSetReminder: (Long?) -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val isShoppingList = taskList.category == Category.SHOPPING
     var newItemText by remember { mutableStateOf("") }
+    var newItemQuantity by remember { mutableStateOf("") }
     var menuExpanded by remember { mutableStateOf(false) }
     var showReminderDialog by remember { mutableStateOf(false) }
     val permissionState = rememberReminderPermissionState()
@@ -200,8 +210,11 @@ fun TaskListDetailSheet(
             taskList.items.forEach { item ->
                 ChecklistItemRow(
                     item = item,
+                    showGroceryIcon = isShoppingList,
+                    showQuantity = isShoppingList,
                     onToggle = { onToggleItem(item) },
                     onRemove = { onRemoveItem(item) },
+                    onQuantityChange = { onSetItemQuantity(item, it) },
                 )
                 Spacer(Modifier.height(6.dp))
             }
@@ -211,10 +224,14 @@ fun TaskListDetailSheet(
             AddChecklistItemRow(
                 value = newItemText,
                 onValueChange = { newItemText = it },
+                quantity = newItemQuantity,
+                onQuantityChange = { newItemQuantity = it },
+                showQuantity = isShoppingList,
                 onSubmit = {
                     if (newItemText.isNotBlank()) {
-                        onAddItem(newItemText)
+                        onAddItem(newItemText, newItemQuantity.trim().ifBlank { null })
                         newItemText = ""
+                        newItemQuantity = ""
                     }
                 },
             )
@@ -235,8 +252,11 @@ fun TaskListDetailSheet(
 @Composable
 private fun ChecklistItemRow(
     item: TaskListItem,
+    showGroceryIcon: Boolean,
+    showQuantity: Boolean,
     onToggle: () -> Unit,
     onRemove: () -> Unit,
+    onQuantityChange: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -258,6 +278,13 @@ private fun ChecklistItemRow(
             onCheckedChange = { onToggle() },
             colors = CheckboxDefaults.colors(checkedColor = NeonPurple),
         )
+        if (showGroceryIcon) {
+            Text(
+                text = groceryItemEmoji(item.text),
+                fontSize = 15.sp,
+                modifier = Modifier.padding(end = 6.dp),
+            )
+        }
         Text(
             text = item.text,
             style = MaterialTheme.typography.bodyMedium,
@@ -265,6 +292,13 @@ private fun ChecklistItemRow(
             textDecoration = if (item.isChecked) TextDecoration.LineThrough else null,
             modifier = Modifier.weight(1f),
         )
+        if (showQuantity) {
+            QuantityEditor(
+                quantity = item.quantity,
+                onQuantityChange = onQuantityChange,
+                modifier = Modifier.padding(end = 4.dp),
+            )
+        }
         IconButton(onClick = onRemove, modifier = Modifier.size(40.dp)) {
             Icon(
                 imageVector = Icons.Rounded.Close,
@@ -276,10 +310,71 @@ private fun ChecklistItemRow(
     }
 }
 
+/**
+ * Inline "milk — 2 L" quantity display, tap-to-edit: tapping the current value (or the
+ * "+ qty" placeholder when there is none) swaps in a small text field; committing on
+ * Done calls [onQuantityChange] with the trimmed value, or `null` when left blank.
+ */
+@Composable
+private fun QuantityEditor(
+    quantity: String?,
+    onQuantityChange: (String?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var editing by remember { mutableStateOf(false) }
+    var draft by remember(quantity) { mutableStateOf(quantity.orEmpty()) }
+
+    if (editing) {
+        Box(
+            modifier = modifier
+                .width(56.dp)
+                .clip(RoundedCornerShape(SmartTodoDimens.SurfaceRadius))
+                .background(SurfaceElevated)
+                .border(
+                    width = 1.dp,
+                    color = HairlineBorder,
+                    shape = RoundedCornerShape(SmartTodoDimens.SurfaceRadius),
+                )
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+        ) {
+            BasicTextField(
+                value = draft,
+                onValueChange = { draft = it },
+                textStyle = MaterialTheme.typography.labelMedium.copy(color = TextPrimary),
+                cursorBrush = SolidColor(NeonPurple),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = {
+                    onQuantityChange(draft.trim().ifBlank { null })
+                    editing = false
+                }),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    } else {
+        Text(
+            text = quantity?.let { stringResource(R.string.list_item_quantity_format, it) }
+                ?: stringResource(R.string.action_add_quantity),
+            style = MaterialTheme.typography.labelMedium,
+            color = TextMuted,
+            modifier = modifier
+                .clip(RoundedCornerShape(SmartTodoDimens.SurfaceRadius))
+                .clickable {
+                    draft = quantity.orEmpty()
+                    editing = true
+                }
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+        )
+    }
+}
+
 @Composable
 private fun AddChecklistItemRow(
     value: String,
     onValueChange: (String) -> Unit,
+    quantity: String,
+    onQuantityChange: (String) -> Unit,
+    showQuantity: Boolean,
     onSubmit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -316,6 +411,40 @@ private fun AddChecklistItemRow(
                 keyboardActions = KeyboardActions(onDone = { onSubmit() }),
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+        if (showQuantity) {
+            Spacer(Modifier.width(6.dp))
+            Box(
+                modifier = Modifier
+                    .width(64.dp)
+                    .heightIn(min = 44.dp)
+                    .clip(RoundedCornerShape(SmartTodoDimens.SurfaceRadius))
+                    .background(SurfaceMuted)
+                    .border(
+                        width = 1.dp,
+                        color = HairlineBorder,
+                        shape = RoundedCornerShape(SmartTodoDimens.SurfaceRadius),
+                    )
+                    .padding(horizontal = 10.dp, vertical = 10.dp),
+            ) {
+                if (quantity.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.add_list_item_quantity_placeholder),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextPlaceholder,
+                    )
+                }
+                BasicTextField(
+                    value = quantity,
+                    onValueChange = onQuantityChange,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = TextPrimary),
+                    cursorBrush = SolidColor(NeonPurple),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { onSubmit() }),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
         Spacer(Modifier.width(6.dp))
         IconButton(onClick = onSubmit, modifier = Modifier.size(44.dp)) {

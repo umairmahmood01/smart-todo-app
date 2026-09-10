@@ -68,4 +68,24 @@ object Migrations {
             )
         }
     }
+
+    /**
+     * Version 2 -> 3:
+     * - adds the nullable `tasks.details` column (no default needed; existing rows get SQL
+     *   `NULL`, which maps to Kotlin `null`, meaning "no details", matching every
+     *   pre-migration task's actual state).
+     * - adds the nullable `task_list_items.quantity` column (same reasoning: existing lines
+     *   get `NULL`, meaning "no quantity was given", matching their actual state).
+     *
+     * Same verification status as [MIGRATION_1_2]: reviewed by hand against [TaskDatabase]'s
+     * entity definitions, not run against a real device or emulator (no JDK/Android
+     * SDK/Gradle on this development machine to run an instrumented `MigrationTestHelper`
+     * test). Treat it as reviewed, not proven.
+     */
+    val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE tasks ADD COLUMN details TEXT")
+            db.execSQL("ALTER TABLE task_list_items ADD COLUMN quantity TEXT")
+        }
+    }
 }

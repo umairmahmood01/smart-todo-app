@@ -49,7 +49,9 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.umair.smarttodo.R
+import com.umair.smarttodo.domain.Category
 import com.umair.smarttodo.ui.theme.HairlineBorder
 import com.umair.smarttodo.ui.theme.NeonPurple
 import com.umair.smarttodo.ui.theme.SmartTodoDimens
@@ -63,19 +65,27 @@ import kotlinx.coroutines.delay
 
 private const val FocusDelayMillis = 180L
 
-/** One growable-list row: a stable local id so text-field state survives reordering. */
-private data class DraftItemRow(val id: Long, val text: String)
+/**
+ * One growable-list row: a stable local id so text-field state survives reordering.
+ * [quantity] is only ever shown/editable when the in-progress list's [previewCategory]
+ * is [Category.SHOPPING]; it is otherwise carried along blank and dropped on save.
+ */
+private data class DraftItemRow(val id: Long, val text: String, val quantity: String = "")
 
 /**
  * Title, a dynamically growing list of plain item rows (add/remove), and an optional
  * reminder. Category is not picked here: the ViewModel categorizes the title the same
- * way [AddTaskSheet] categorizes a plain task's text.
+ * way [AddTaskSheet] categorizes a plain task's text — [previewCategory] is that same
+ * categorizer, exposed read-only so this sheet can decide, live as the user types the
+ * title, whether to show shopping-list affordances (quantity fields, grocery emoji)
+ * before the list even exists.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTaskListSheet(
     onDismiss: () -> Unit,
-    onSave: (title: String, items: List<String>, reminderAt: Long?) -> Unit,
+    onSave: (title: String, items: List<Pair<String, String?>>, reminderAt: Long?) -> Unit,
+    previewCategory: (String) -> Category,
     modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -84,6 +94,7 @@ fun AddTaskListSheet(
     var nextRowId by remember { mutableStateOf(1L) }
     val rows = remember { mutableStateListOf(DraftItemRow(id = 0L, text = "")) }
     val titleFocusRequester = remember { FocusRequester() }
+    val isShoppingList = previewCategory(title) == Category.SHOPPING
 
     LaunchedEffect(Unit) {
         delay(FocusDelayMillis)
@@ -128,6 +139,12 @@ fun AddTaskListSheet(
                     onValueChange = { newText ->
                         rows[index] = row.copy(text = newText)
                     },
+                    quantity = row.quantity,
+                    onQuantityChange = { newQuantity ->
+                        rows[index] = row.copy(quantity = newQuantity)
+                    },
+                    showQuantity = isShoppingList,
+                    showGroceryIcon = isShoppingList,
                     onRemove = if (rows.size > 1) {
                         { rows.removeAt(index) }
                     } else {
@@ -159,9 +176,11 @@ fun AddTaskListSheet(
                 Spacer(Modifier.padding(horizontal = 4.dp))
                 Button(
                     onClick = {
-                        val itemTexts = rows.map { it.text }.filter { it.isNotBlank() }
+                        val items = rows
+                            .filter { it.text.isNotBlank() }
+                            .map { it.text to it.quantity.trim().ifBlank { null } }
                         if (title.isBlank()) return@Button
-                        onSave(title, itemTexts, reminderAt)
+                        onSave(title, items, reminderAt)
                         onDismiss()
                     },
                     enabled = title.isNotBlank(),
@@ -222,6 +241,10 @@ private fun DraftTitleField(
 private fun DraftItemField(
     value: String,
     onValueChange: (String) -> Unit,
+    quantity: String,
+    onQuantityChange: (String) -> Unit,
+    showQuantity: Boolean,
+    showGroceryIcon: Boolean,
     onRemove: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
@@ -229,6 +252,13 @@ private fun DraftItemField(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (showGroceryIcon) {
+            Text(
+                text = groceryItemEmoji(value),
+                fontSize = 16.sp,
+                modifier = Modifier.padding(end = 6.dp),
+            )
+        }
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -258,6 +288,40 @@ private fun DraftItemField(
                 keyboardActions = KeyboardActions(onDone = {}),
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+        if (showQuantity) {
+            Spacer(Modifier.width(6.dp))
+            Box(
+                modifier = Modifier
+                    .width(64.dp)
+                    .heightIn(min = 44.dp)
+                    .clip(RoundedCornerShape(SmartTodoDimens.SurfaceRadius))
+                    .background(SurfaceMuted)
+                    .border(
+                        width = 1.dp,
+                        color = HairlineBorder,
+                        shape = RoundedCornerShape(SmartTodoDimens.SurfaceRadius),
+                    )
+                    .padding(horizontal = 10.dp, vertical = 10.dp),
+            ) {
+                if (quantity.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.add_list_item_quantity_placeholder),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextPlaceholder,
+                    )
+                }
+                BasicTextField(
+                    value = quantity,
+                    onValueChange = onQuantityChange,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = TextPrimary),
+                    cursorBrush = SolidColor(NeonPurple),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {}),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
         if (onRemove != null) {
             Spacer(Modifier.width(6.dp))

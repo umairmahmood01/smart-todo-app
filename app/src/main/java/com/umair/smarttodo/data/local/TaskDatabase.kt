@@ -14,10 +14,13 @@ import androidx.room.TypeConverters
  * Version 2 added `tasks.reminderAt` plus the `task_lists` / `task_list_items` tables for the
  * checklist feature; see [Migrations.MIGRATION_1_2] for the exact SQL and its verification
  * status.
+ *
+ * Version 3 added `tasks.details` (task editing / details) and `task_list_items.quantity`
+ * (checklist-item quantity); see [Migrations.MIGRATION_2_3].
  */
 @Database(
     entities = [TaskEntity::class, TaskListEntity::class, TaskListItemEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -34,7 +37,7 @@ abstract class TaskDatabase : RoomDatabase() {
          * Current schema version, mirroring the literal in `@Database`. Bump both together
          * with a migration, never on their own.
          */
-        const val VERSION: Int = 2
+        const val VERSION: Int = 3
 
         /** On-disk file name for the database. */
         const val NAME: String = "smart_todo.db"

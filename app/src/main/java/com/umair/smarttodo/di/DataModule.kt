@@ -41,15 +41,16 @@ object DataModule {
     /**
      * The app-wide [TaskDatabase].
      *
-     * [Migrations.MIGRATION_1_2] is registered explicitly (no destructive fallback), so a
-     * user's existing tasks survive the version 1 -> 2 upgrade. See that object's kdoc for
-     * this migration's verification status: reviewed by hand, not yet run on a device.
+     * [Migrations.MIGRATION_1_2] and [Migrations.MIGRATION_2_3] are registered explicitly (no
+     * destructive fallback), so a user's existing tasks survive the version 1 -> 2 -> 3
+     * upgrades. See each object's kdoc for that migration's verification status: reviewed by
+     * hand, not yet run on a device.
      */
     @Provides
     @Singleton
     fun provideTaskDatabase(@ApplicationContext context: Context): TaskDatabase =
         Room.databaseBuilder(context, TaskDatabase::class.java, TaskDatabase.NAME)
-            .addMigrations(Migrations.MIGRATION_1_2)
+            .addMigrations(Migrations.MIGRATION_1_2, Migrations.MIGRATION_2_3)
             .build()
 
     /** The DAO is owned by the database, so it inherits the database's singleton lifetime. */
