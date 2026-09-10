@@ -46,6 +46,9 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Assemble debug
+        env:
+          ENRICHMENT_BASE_URL: ${{ secrets.ENRICHMENT_BASE_URL }}
+          ENRICHMENT_FUNCTION_KEY: ${{ secrets.ENRICHMENT_FUNCTION_KEY }}
         run: ./gradlew assembleDebug --stacktrace
 
       - name: Unit tests
