@@ -101,6 +101,7 @@ fun HomeRoute(
         onSetItemQuantity = { taskList, item, quantity ->
             viewModel.onSetItemQuantity(taskList.id, item.id, quantity)
         },
+        onSetAllItemsChecked = viewModel::onSetAllItemsChecked,
         onDeleteList = viewModel::onDeleteList,
         onSetListReminder = viewModel::onSetListReminder,
         modifier = modifier,
@@ -128,6 +129,7 @@ fun HomeScreen(
     onAddListItem: (TaskList, String, String?) -> Unit,
     onRemoveListItem: (TaskList, TaskListItem) -> Unit,
     onSetItemQuantity: (TaskList, TaskListItem, String?) -> Unit,
+    onSetAllItemsChecked: (listId: Long, checked: Boolean) -> Unit,
     onDeleteList: (TaskList) -> Unit,
     onSetListReminder: (TaskList, Long?) -> Unit,
     modifier: Modifier = Modifier,
@@ -231,6 +233,7 @@ fun HomeScreen(
                             onOpen = { openListId = it.id },
                             onDelete = onDeleteList,
                             onSetReminder = onSetListReminder,
+                            onSetAllItemsChecked = onSetAllItemsChecked,
                             modifier = Modifier.padding(horizontal = screenPadding),
                         )
                     }
@@ -305,6 +308,7 @@ fun HomeScreen(
             onAddItem = { text, quantity -> onAddListItem(openList, text, quantity) },
             onRemoveItem = { item -> onRemoveListItem(openList, item) },
             onSetItemQuantity = { item, quantity -> onSetItemQuantity(openList, item, quantity) },
+            onSetAllItemsChecked = { checked -> onSetAllItemsChecked(openList.id, checked) },
             onSetReminder = { atMillis -> onSetListReminder(openList, atMillis) },
             onDelete = {
                 onDeleteList(openList)
@@ -315,6 +319,11 @@ fun HomeScreen(
     // The list may disappear (e.g. deleted from another surface) while its detail
     // sheet is open; clear the stale id via a LaunchedEffect rather than mutating
     // state directly during composition.
+    //
+    // Note this now also fires when a list becomes complete while its sheet is open,
+    // because completed lists leave the default feed: ticking the last checkbox, or
+    // tapping "Mark all complete", closes the sheet and the list reappears under the
+    // "Done" pill. That is the same behaviour for both routes, deliberately.
     LaunchedEffect(openListId, openList) {
         if (openListId != null && openList == null) {
             openListId = null

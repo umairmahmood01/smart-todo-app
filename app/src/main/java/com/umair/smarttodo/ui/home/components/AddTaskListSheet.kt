@@ -222,6 +222,7 @@ private fun DraftTitleField(
                 text = stringResource(R.string.add_list_title_placeholder),
                 style = MaterialTheme.typography.bodyLarge,
                 color = TextPlaceholder,
+                modifier = Modifier.padding(end = MicGutter),
             )
         }
         BasicTextField(
@@ -232,10 +233,21 @@ private fun DraftTitleField(
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(end = MicGutter)
                 .focusRequester(focusRequester),
+        )
+        // Speaking the title matters more than it looks: the title is what gets
+        // categorized, so a dictated "grocery list" still lands in Shopping and still
+        // switches this sheet into its quantity-showing shopping mode as it is spoken.
+        VoiceInputButton(
+            onTextRecognized = { spoken -> onValueChange(appendSpokenText(value, spoken)) },
+            modifier = Modifier.align(Alignment.CenterEnd),
         )
     }
 }
+
+/** Room reserved at the trailing edge of a text field for the microphone button. */
+private val MicGutter = 40.dp
 
 @Composable
 private fun DraftItemField(
@@ -289,6 +301,11 @@ private fun DraftItemField(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+        VoiceInputButton(
+            onTextRecognized = { spoken -> onValueChange(appendSpokenText(value, spoken)) },
+            buttonSize = 34.dp,
+            iconSize = 17.dp,
+        )
         if (showQuantity) {
             Spacer(Modifier.width(6.dp))
             Box(

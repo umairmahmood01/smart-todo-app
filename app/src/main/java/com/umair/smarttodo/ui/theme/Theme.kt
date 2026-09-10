@@ -60,12 +60,17 @@ object SmartTodoDimens {
     val AvatarSize = 44.dp
     val ProgressRingSize = 62.dp
     val ProgressRingStroke = 7.dp
-    val TaskTileSize = 38.dp
     val FabSize = 60.dp
     val ListBottomFade = 96.dp
-    /** Horizontal/vertical padding inside a task or task-list card, tuned ~15-20% smaller. */
-    val TaskCardPaddingHorizontal = 13.dp
-    val TaskCardPaddingVertical = 11.dp
+
+    /**
+     * Padding inside a task or task-list card. Nudged back up when cards moved to the dark
+     * accent surface: the heading shrank from 18sp to 15sp, and the gap that freed up was
+     * spent on breathing room rather than on a smaller card, which is what makes the
+     * lighter type read as deliberate instead of cramped.
+     */
+    val TaskCardPaddingHorizontal = 15.dp
+    val TaskCardPaddingVertical = 14.dp
     /** Gap between stacked cards in the feed `LazyColumn`. */
     val CardListSpacing = 11.dp
 }

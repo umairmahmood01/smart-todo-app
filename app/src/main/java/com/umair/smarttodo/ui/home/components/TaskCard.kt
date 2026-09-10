@@ -2,19 +2,18 @@ package com.umair.smarttodo.ui.home.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
@@ -40,19 +39,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.umair.smarttodo.R
 import com.umair.smarttodo.domain.Task
 import com.umair.smarttodo.domain.TaskStatus
-import com.umair.smarttodo.ui.theme.SmartTodoDimens
+import com.umair.smarttodo.ui.theme.TextPrimary
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -62,18 +57,29 @@ private const val DatePattern = "dd.MM.yyyy"
 private const val DateTimePattern = "dd.MM.yyyy HH:mm"
 
 /**
- * A single category-gradient task card. Every interaction is delegated upwards; the
- * only state held here is whether the overflow menu / reminder dialog is open, which is
- * pure UI state. Text, icon and hairline colours all derive from
- * `task.category.visual().contentColor` so they stay readable on every category's
- * gradient (some, like Health & Fitness, use dark text on a light gradient).
+ * A single task card, built on the shared [CategoryAccentCard] shell so tasks and task
+ * lists read as one family. Every interaction is delegated upwards; the only state held
+ * here is whether the overflow menu or the reminder dialog is open, which is pure UI
+ * state. All card text is white-on-dark, so there is no per-category content colour to
+ * thread through any more.
  *
- * Tapping anywhere on the card body (outside the status pill and the overflow menu, both
- * of which own their own `clickable`s and consume the tap before it reaches this one)
- * calls [onEdit] to open the same sheet used for adding a task, pre-filled and in edit
- * mode. The overflow menu also has an explicit "Edit" item that does the same thing, for
- * anyone who doesn't discover the tap.
+ * WHICH TEXT IS THE HEADING. The heading is [Task.normalizedEnglishText] whenever it is
+ * non-blank, falling back to [Task.rawText] otherwise - not yet enriched, offline, or
+ * enrichment not configured all have to degrade to something, and an empty heading is
+ * never acceptable. What the user actually typed then appears underneath as a quiet
+ * secondary line, and only when it differs from the heading, so an English-only task does
+ * not print itself twice.
+ *
+ * This is a display swap and nothing more. [Task.rawText] is never copied into
+ * [Task.details] - `details` belongs to the user, and the app neither populates nor
+ * overwrites it. Editing still edits `rawText` (see [AddTaskSheet]), because the English
+ * rendering is derived from it and regenerates on save.
+ *
+ * Tapping anywhere on the card body (outside the status pill, the details pill and the
+ * overflow menu, all of which own their own clickables and consume the tap first) calls
+ * [onEdit] to open the same sheet used for adding a task, pre-filled and in edit mode.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TaskCard(
     task: Task,
@@ -86,197 +92,163 @@ fun TaskCard(
     modifier: Modifier = Modifier,
 ) {
     val visual = task.category.visual()
-    val onCard = visual.contentColor
-    val onCardScrim = onCard.copy(alpha = 0.20f)
-    val onCardBorder = onCard.copy(alpha = 0.18f)
-    val onCardMuted = onCard.copy(alpha = 0.76f)
-    val shape = RoundedCornerShape(SmartTodoDimens.TaskCardRadius)
     val context = LocalContext.current
+    val heading = task.headingText()
+    val original = task.originalTextOrNull()
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(visual.brush)
-            .clickable { onEdit(task) }
-            .drawWithCache {
-                // Soft bloom in the top-right corner of the card, tinted with the
-                // card's own content colour so it reads on both light and dark cards.
-                val brush = Brush.radialGradient(
-                    colors = listOf(onCard.copy(alpha = 0.16f), Color.Transparent),
-                    center = Offset(size.width - 40.dp.toPx(), -20.dp.toPx()),
-                    radius = 110.dp.toPx(),
-                )
-                onDrawBehind { drawRect(brush) }
-            },
+    CategoryAccentCard(
+        accent = visual.accent,
+        watermarkEmoji = visual.emoji,
+        onClick = { onEdit(task) },
+        modifier = modifier,
     ) {
-        Column(
-            modifier = Modifier.padding(
-                horizontal = SmartTodoDimens.TaskCardPaddingHorizontal,
-                vertical = SmartTodoDimens.TaskCardPaddingVertical,
-            ),
-        ) {
-            Row(verticalAlignment = Alignment.Top) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (task.isPinned) {
-                            PinnedBadge(onCard = onCard, onCardScrim = onCardScrim, onCardBorder = onCardBorder)
-                        }
-                        if (task.reminderAt != null) {
-                            if (task.isPinned) Spacer(Modifier.width(6.dp))
-                            ReminderBadge(onCard = onCard, onCardScrim = onCardScrim, onCardBorder = onCardBorder)
-                        }
+        Row(verticalAlignment = Alignment.Top) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (task.isPinned) {
+                        PinnedBadge()
                     }
-                    if (task.isPinned || task.reminderAt != null) {
-                        Spacer(Modifier.height(8.dp))
+                    if (task.reminderAt != null) {
+                        if (task.isPinned) Spacer(Modifier.width(6.dp))
+                        ReminderBadge()
                     }
+                }
+                if (task.isPinned || task.reminderAt != null) {
+                    Spacer(Modifier.height(9.dp))
+                }
+                Text(
+                    text = heading,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = TextPrimary,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (original != null) {
+                    Spacer(Modifier.height(5.dp))
                     Text(
-                        text = task.rawText,
-                        style = MaterialTheme.typography.titleLarge,
-                        color = onCard,
-                        maxLines = 3,
+                        text = stringResource(R.string.task_original_format, original),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = CardTextMuted,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Spacer(Modifier.width(10.dp))
-                if (!task.details.isNullOrBlank()) {
-                    Icon(
-                        imageVector = Icons.Rounded.Notes,
-                        contentDescription = stringResource(R.string.cd_has_details),
-                        tint = onCardMuted,
+            }
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = rememberFormattedDate(task.createdDate),
+                style = MaterialTheme.typography.labelMedium,
+                color = CardTextFaint,
+                maxLines = 1,
+                modifier = Modifier.padding(top = 3.dp),
+            )
+            TaskOverflowMenu(
+                task = task,
+                onSetStatus = onSetStatus,
+                onTogglePin = onTogglePin,
+                onDelete = onDelete,
+                onSetReminder = onSetReminder,
+                onEdit = onEdit,
+                onShare = { context.shareAsPlainText(task.toShareText()) },
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        TaskMetaLine(task = task)
+
+        Spacer(Modifier.height(12.dp))
+
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            CardPill(
+                text = task.category.label,
+                leading = { Text(text = visual.emoji, style = MaterialTheme.typography.labelMedium) },
+            )
+            CardPill(
+                text = stringResource(task.status.labelRes()),
+                onClick = { onToggleStatus(task) },
+                leading = {
+                    Box(
                         modifier = Modifier
-                            .padding(top = 3.dp)
-                            .size(14.dp),
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(task.status.color()),
                     )
-                    Spacer(Modifier.width(6.dp))
-                }
-                Text(
-                    text = rememberFormattedDate(task.createdDate),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = onCardMuted,
-                    maxLines = 1,
-                    modifier = Modifier.padding(top = 3.dp),
-                )
-                TaskOverflowMenu(
-                    task = task,
-                    onSetStatus = onSetStatus,
-                    onTogglePin = onTogglePin,
-                    onDelete = onDelete,
-                    onSetReminder = onSetReminder,
-                    onEdit = onEdit,
-                    onShare = { context.shareAsPlainText(task.toShareText()) },
-                    tint = onCardMuted,
-                )
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            Row(verticalAlignment = Alignment.Top) {
-                CategoryTile(emoji = visual.emoji, onCardScrim = onCardScrim, onCardBorder = onCardBorder)
-                Spacer(Modifier.width(11.dp))
-                Column {
-                    // Filled in later by the LLM normalization layer, and absent for
-                    // English input, so it has to degrade gracefully.
-                    val normalized = task.normalizedEnglishText
-                    if (!normalized.isNullOrBlank() && normalized != task.rawText) {
-                        Text(
-                            text = normalized,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = onCard.copy(alpha = 0.94f),
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
+                },
+            )
+            if (!task.details.isNullOrBlank()) {
+                // Feature: a card with notes used to advertise them with nothing but a
+                // bare glyph, which nobody read as "there is more here, tap it". A short
+                // labelled pill says so outright, and still costs one line.
+                CardPill(
+                    text = stringResource(R.string.action_read_more),
+                    onClick = { onEdit(task) },
+                    leading = {
+                        Icon(
+                            imageVector = Icons.Rounded.Notes,
+                            contentDescription = null,
+                            tint = TextPrimary,
+                            modifier = Modifier.size(13.dp),
                         )
-                        Spacer(Modifier.height(6.dp))
-                    }
-                    TaskMetaLine(task = task, onCard = onCard)
-                }
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TaskTag(
-                    text = visual.emoji + "  " + task.category.label,
-                    onCard = onCard,
-                    onCardScrim = onCardScrim,
-                    onCardBorder = onCardBorder,
-                )
-                StatusTag(
-                    status = task.status,
-                    onClick = { onToggleStatus(task) },
-                    onCard = onCard,
-                    onCardScrim = onCardScrim,
-                    onCardBorder = onCardBorder,
+                    },
                 )
             }
         }
     }
 }
 
+/**
+ * The card heading: the English rendering when there is one, otherwise exactly what the
+ * user typed. Blank is impossible - [Task.rawText] is never blank by repository contract.
+ */
+internal fun Task.headingText(): String =
+    normalizedEnglishText?.takeIf { it.isNotBlank() } ?: rawText
+
+/**
+ * The user's own words, or null when showing them would just repeat the heading (English
+ * input, or no enrichment yet).
+ */
+internal fun Task.originalTextOrNull(): String? =
+    rawText.takeIf { it.isNotBlank() && it != headingText() }
+
 @Composable
-private fun PinnedBadge(
-    onCard: Color,
-    onCardScrim: Color,
-    onCardBorder: Color,
-    modifier: Modifier = Modifier,
-) {
+private fun PinnedBadge(modifier: Modifier = Modifier) {
     Text(
         text = stringResource(R.string.task_pinned),
         style = MaterialTheme.typography.labelSmall,
-        color = onCard,
+        color = TextPrimary,
         modifier = modifier
             .clip(CircleShape)
-            .background(onCardScrim)
-            .border(width = 1.dp, color = onCardBorder, shape = CircleShape)
+            .background(CardScrim)
+            .border(width = 1.dp, color = CardHairline, shape = CircleShape)
             .padding(horizontal = 10.dp, vertical = 4.dp),
     )
 }
 
 @Composable
-private fun ReminderBadge(
-    onCard: Color,
-    onCardScrim: Color,
-    onCardBorder: Color,
-    modifier: Modifier = Modifier,
-) {
+private fun ReminderBadge(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .clip(CircleShape)
-            .background(onCardScrim)
-            .border(width = 1.dp, color = onCardBorder, shape = CircleShape)
+            .background(CardScrim)
+            .border(width = 1.dp, color = CardHairline, shape = CircleShape)
             .padding(6.dp),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = Icons.Rounded.NotificationsActive,
             contentDescription = stringResource(R.string.cd_reminder_active),
-            tint = onCard,
+            tint = TextPrimary,
             modifier = Modifier.size(11.dp),
         )
     }
 }
 
 @Composable
-private fun CategoryTile(
-    emoji: String,
-    onCardScrim: Color,
-    onCardBorder: Color,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-            .size(SmartTodoDimens.TaskTileSize)
-            .clip(RoundedCornerShape(12.dp))
-            .background(onCardScrim)
-            .border(width = 1.dp, color = onCardBorder, shape = RoundedCornerShape(12.dp)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text = emoji, fontSize = 18.sp)
-    }
-}
-
-@Composable
-private fun TaskMetaLine(task: Task, onCard: Color, modifier: Modifier = Modifier) {
+private fun TaskMetaLine(task: Task, modifier: Modifier = Modifier) {
     val dueDate = task.dueDate
     val text = if (dueDate != null) {
         stringResource(R.string.task_due, rememberFormattedDateTime(dueDate))
@@ -287,67 +259,14 @@ private fun TaskMetaLine(task: Task, onCard: Color, modifier: Modifier = Modifie
         Icon(
             imageVector = Icons.Rounded.Schedule,
             contentDescription = null,
-            tint = onCard.copy(alpha = 0.85f),
+            tint = CardTextFaint,
             modifier = Modifier.size(13.dp),
         )
         Spacer(Modifier.width(6.dp))
         Text(
             text = text,
             style = MaterialTheme.typography.labelMedium,
-            color = onCard.copy(alpha = 0.82f),
-        )
-    }
-}
-
-@Composable
-private fun TaskTag(
-    text: String,
-    onCard: Color,
-    onCardScrim: Color,
-    onCardBorder: Color,
-    modifier: Modifier = Modifier,
-) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelMedium,
-        color = onCard,
-        modifier = modifier
-            .clip(CircleShape)
-            .background(onCardScrim)
-            .border(width = 1.dp, color = onCardBorder, shape = CircleShape)
-            .padding(horizontal = 11.dp, vertical = 5.dp),
-    )
-}
-
-@Composable
-private fun StatusTag(
-    status: TaskStatus,
-    onClick: () -> Unit,
-    onCard: Color,
-    onCardScrim: Color,
-    onCardBorder: Color,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .clip(CircleShape)
-            .background(onCardScrim)
-            .border(width = 1.dp, color = onCardBorder, shape = CircleShape)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 11.dp, vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .clip(CircleShape)
-                .background(status.color()),
-        )
-        Spacer(Modifier.width(6.dp))
-        Text(
-            text = stringResource(status.labelRes()),
-            style = MaterialTheme.typography.labelMedium,
-            color = onCard,
+            color = CardTextFaint,
         )
     }
 }
@@ -361,8 +280,8 @@ private fun TaskOverflowMenu(
     onSetReminder: (Task, Long?) -> Unit,
     onEdit: (Task) -> Unit,
     onShare: () -> Unit,
-    tint: Color,
     modifier: Modifier = Modifier,
+    tint: Color = CardTextFaint,
 ) {
     var expanded by remember { mutableStateOf(false) }
     var showReminderDialog by remember { mutableStateOf(false) }
@@ -520,7 +439,6 @@ private fun TaskOverflowMenu(
             )
         }
     }
-
 
     ReminderDialogFlow(
         show = showReminderDialog,

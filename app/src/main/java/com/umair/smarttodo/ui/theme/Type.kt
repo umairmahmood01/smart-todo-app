@@ -26,8 +26,9 @@ val InterFontFamily = FontFamily(
  * place of the ambiguous platform default, a clearer weight step between
  * title/label/body (no more blanket ExtraBold everywhere — headlines are Bold, section
  * titles SemiBold, tags/labels Medium/SemiBold, body Normal), and slightly tighter
- * tracking on headlines. Sizes and line-height ratios are unchanged from the approved
- * mockup.
+ * tracking on headlines. Sizes and line-height ratios follow the approved mockup, with
+ * one deliberate departure: [Typography.titleLarge] (the card heading) was dialled down
+ * from 18sp Bold to 15sp Medium at the user's request — see its comment below.
  */
 val SmartTodoTypography = Typography(
     // Greeting
@@ -38,13 +39,17 @@ val SmartTodoTypography = Typography(
         lineHeight = 26.sp,
         letterSpacing = (-0.4).sp,
     ),
-    // Task card title
+    // Task / task-list card heading. Deliberately small and light: the user found the
+    // old 18sp Bold heading "quite big" and wanted something "small and with a subtle
+    // font". Hierarchy on a card now comes from colour, weight and breathing room rather
+    // than raw size, so this is Medium at 15sp with tight tracking; Bold stays reserved
+    // for genuinely emphatic elements (greeting, progress percentage).
     titleLarge = TextStyle(
         fontFamily = InterFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 18.sp,
-        lineHeight = 22.sp,
-        letterSpacing = (-0.3).sp,
+        fontWeight = FontWeight.Medium,
+        fontSize = 15.sp,
+        lineHeight = 20.sp,
+        letterSpacing = (-0.2).sp,
     ),
     // Section headers ("Your tasks")
     titleMedium = TextStyle(

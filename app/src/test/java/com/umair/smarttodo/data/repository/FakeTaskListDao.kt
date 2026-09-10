@@ -44,6 +44,14 @@ class FakeTaskListDao : TaskListDao {
     var deleteTaskListCount: Int = 0
         private set
 
+    /** Number of per-item [setItemChecked] calls, to prove bulk updates do not loop. */
+    var setItemCheckedCount: Int = 0
+        private set
+
+    /** Number of [setAllItemsChecked] calls, i.e. bulk writes issued. */
+    var setAllItemsCheckedCount: Int = 0
+        private set
+
     private var nextListId = 1L
     private var nextItemId = 1L
 
@@ -94,9 +102,29 @@ class FakeTaskListDao : TaskListDao {
     }
 
     override suspend fun setItemChecked(itemId: Long, checked: Boolean): Int {
+        setItemCheckedCount++
         var updated = 0
         itemRows.value = itemRows.value.map { row ->
             if (row.id == itemId) {
+                updated++
+                row.copy(isChecked = checked)
+            } else {
+                row
+            }
+        }
+        return updated
+    }
+
+    /**
+     * Bulk update, scoped by `listId` exactly like the real `@Query`'s `WHERE listId` clause:
+     * items of other lists keep their state. One assignment to [itemRows] means observers see
+     * a single change, matching the "one write, not one per item" DAO contract.
+     */
+    override suspend fun setAllItemsChecked(listId: Long, checked: Boolean): Int {
+        setAllItemsCheckedCount++
+        var updated = 0
+        itemRows.value = itemRows.value.map { row ->
+            if (row.listId == listId) {
                 updated++
                 row.copy(isChecked = checked)
             } else {

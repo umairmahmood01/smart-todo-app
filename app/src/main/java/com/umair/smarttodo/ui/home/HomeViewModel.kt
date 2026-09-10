@@ -62,22 +62,37 @@ class HomeViewModel @Inject constructor(
                 val query = key.query.ifBlank { null }
                 combine(
                     // The tasks the user sees: every filter applied.
+                    //
+                    // With no status pill selected the feed deliberately excludes DONE.
+                    // Finished work leaving the main screen is the point; it is not gone,
+                    // it is one tap away behind the green "Done" pill. This is pushed down
+                    // into the query as an explicit TODO + IN_PROGRESS set rather than
+                    // filtered out of the result afterwards, so the database never returns
+                    // rows the UI is going to throw away.
                     repository.observeTasks(
                         query = query,
                         categories = key.filters.categories,
-                        statuses = key.filters.statuses,
+                        statuses = key.filters.statuses.ifEmpty { DEFAULT_FEED_STATUSES },
                         sort = key.filters.sort,
                     ),
                     // The task counting scope: query only, so chips and tracker pills keep
                     // showing real totals while the user filters by them.
+                    //
+                    // DO NOT narrow this call. `statuses = emptySet()` here means "no
+                    // status filter at all", which is what makes the tracker pill counts,
+                    // the "x of y tasks" line and the progress ring keep counting DONE
+                    // tasks even though the feed above hides them. Passing the feed
+                    // statuses here instead would make the ring read 0 of 4 forever.
                     repository.observeTasks(
                         query = query,
                         categories = emptySet(),
                         statuses = emptySet(),
                         sort = key.filters.sort,
                     ),
-                    // The lists the user sees. Lists have no status, so the status filter
-                    // is applied afterwards (it simply hides all lists, not a bug).
+                    // The lists the user sees. A task list has no status column at all -
+                    // its completeness is derived from its items - so the status filter
+                    // cannot be pushed into this query and is applied in buildFeed
+                    // instead. See buildFeed for exactly what each pill does to lists.
                     taskListRepository.observeTaskLists(
                         query = query,
                         categories = key.filters.categories,
@@ -108,7 +123,7 @@ class HomeViewModel @Inject constructor(
                 feedItems = buildFeed(
                     visibleTasks = snapshot.visibleTasks,
                     visibleLists = snapshot.visibleLists,
-                    statusFilterActive = filters.statuses.isNotEmpty(),
+                    selectedStatuses = filters.statuses,
                     sort = filters.sort,
                 ),
                 searchQuery = query,
@@ -253,6 +268,23 @@ class HomeViewModel @Inject constructor(
      */
     fun previewCategory(title: String): Category = taskCategorizer.categorize(title)
 
+    /**
+     * Checks or unchecks every item in list [listId] at once.
+     *
+     * This is how a list gets marked "done". A [TaskList] has no status of its own, so
+     * completion is derived from its items ("every item checked, list non-empty"), and
+     * before this existed the only way to complete a five-item list was five taps. The
+     * repository does it as a single bulk write that emits once, so the feed re-sorts and
+     * the card flips to complete in one frame.
+     *
+     * [checked] is a plain boolean and not a one-way "complete" flag on purpose: passing
+     * false un-completes the list, which is what the UI offers once the list is already
+     * fully checked.
+     */
+    fun onSetAllItemsChecked(listId: Long, checked: Boolean) {
+        viewModelScope.launch { taskListRepository.setAllItemsChecked(listId, checked) }
+    }
+
     fun onToggleListItem(taskList: TaskList, item: TaskListItem) {
         viewModelScope.launch {
             taskListRepository.setItemChecked(taskList.id, item.id, !item.isChecked)
@@ -308,6 +340,13 @@ class HomeViewModel @Inject constructor(
     private companion object {
         const val SEARCH_DEBOUNCE_MS = 300L
         const val STOP_TIMEOUT_MS = 5_000L
+
+        /**
+         * What the feed shows when no status pill is selected: everything that is not
+         * finished. Note this is a real filter passed to the query, not "no filter" -
+         * `emptySet()` would mean all statuses including DONE.
+         */
+        val DEFAULT_FEED_STATUSES = setOf(TaskStatus.TODO, TaskStatus.IN_PROGRESS)
     }
 }
 
@@ -325,23 +364,25 @@ internal fun completionPercent(done: Int, total: Int): Int =
     if (total <= 0) 0 else ((done * 100f) / total).toInt().coerceIn(0, 100)
 
 /**
- * Merges filtered tasks and lists into one feed, sorted together by createdDate.
- * Pinned tasks keep their pinned-first placement (lists have no pin concept, so they
- * never jump the queue); when a status filter is active, lists are excluded entirely
- * because they have no [TaskStatus] to filter by, that is correct, not a bug.
+ * Merges filtered tasks and lists into one feed, sorted together by createdDate. Pinned
+ * tasks keep their pinned-first placement; lists have no pin concept, so they never jump
+ * the queue.
+ *
+ * [visibleTasks] arrives already status-filtered by the query. [visibleLists] cannot be,
+ * because a [TaskList] has no stored status — completion is derived from its items — so
+ * the status pills are applied to lists here, by [matchesStatusFilter].
  */
 internal fun buildFeed(
     visibleTasks: List<Task>,
     visibleLists: List<TaskList>,
-    statusFilterActive: Boolean,
+    selectedStatuses: Set<TaskStatus>,
     sort: TaskSort,
 ): List<HomeFeedItem> {
-    if (statusFilterActive) {
-        return visibleTasks.map { HomeFeedItem.TaskEntry(it) }
-    }
     val pinned = visibleTasks.filter { it.isPinned }.map { HomeFeedItem.TaskEntry(it) }
     val unpinnedTasks = visibleTasks.filterNot { it.isPinned }.map { HomeFeedItem.TaskEntry(it) }
-    val lists = visibleLists.map { HomeFeedItem.ListEntry(it) }
+    val lists = visibleLists
+        .filter { it.matchesStatusFilter(selectedStatuses) }
+        .map { HomeFeedItem.ListEntry(it) }
     val rest = (unpinnedTasks + lists).sortedWith(
         if (sort == TaskSort.CREATED_ASC) {
             compareBy { it.createdDate }
@@ -350,4 +391,21 @@ internal fun buildFeed(
         },
     )
     return pinned + rest
+}
+
+/**
+ * How the status pills apply to a task list, which has no [TaskStatus] of its own.
+ *
+ * - No pill selected: show lists that are not finished, mirroring how the feed hides
+ *   done tasks by default.
+ * - "Done" selected: show the finished lists, alongside the done tasks.
+ * - "To-Do" or "Progress" selected: show no lists at all. A list genuinely has no such
+ *   state — it is either finished or it is not — so hiding them is the correct answer
+ *   rather than a gap in the implementation. This was true before completed lists were
+ *   hidden by default and it is still true now.
+ */
+private fun TaskList.matchesStatusFilter(selectedStatuses: Set<TaskStatus>): Boolean = when {
+    selectedStatuses.isEmpty() -> !isFullyChecked
+    TaskStatus.DONE in selectedStatuses -> isFullyChecked
+    else -> false
 }

@@ -259,6 +259,22 @@ internal class PreviewTaskListRepository(
         }
     }
 
+    /**
+     * Preview-only stand-in for the bulk check/uncheck. The real implementation does this
+     * as a single database UPDATE; here one assignment to [state] is already a single
+     * emission, so the "one write, one emission" half of the contract holds for free.
+     *
+     * An empty list is a no-op rather than an error, per the interface contract - and
+     * correctly stays not-complete afterwards, since completion means "non-empty and every
+     * item checked".
+     */
+    override suspend fun setAllItemsChecked(listId: Long, checked: Boolean) {
+        state.value = state.value.map { list ->
+            if (list.id != listId) return@map list
+            list.copy(items = list.items.map { item -> item.copy(isChecked = checked) })
+        }
+    }
+
     override suspend fun removeItem(listId: Long, itemId: Long) {
         state.value = state.value.map { list ->
             if (list.id != listId) return@map list

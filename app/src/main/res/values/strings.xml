@@ -57,7 +57,11 @@
     <string name="action_delete">Delete task</string>
     <string name="action_share">Share</string>
     <string name="cd_reminder_active">Reminder set</string>
-    <string name="cd_has_details">Has notes</string>
+    <!-- The card heading is the English rendering; this wraps the original wording shown
+         underneath it. Typographic quotes, so no XML escaping is needed. -->
+    <string name="task_original_format">“%1$s”</string>
+    <!-- Labelled affordance on a card that has notes, replacing a bare glyph. -->
+    <string name="action_read_more">Read more</string>
 
     <!-- Add task sheet -->
     <string name="cd_add_task">Add a task</string>
@@ -65,6 +69,9 @@
     <string name="edit_task_title">Edit task</string>
     <string name="add_task_placeholder">What needs doing?</string>
     <string name="add_task_hint">Write it in any language — the category is chosen for you.</string>
+    <string name="add_task_field_label">Your words</string>
+    <string name="edit_task_english_label">English version</string>
+    <string name="edit_task_english_hint">Shown as the card heading. Regenerates from your words after you save.</string>
     <string name="add_task_details_placeholder">Add notes (optional)</string>
     <string name="action_save">Save</string>
     <string name="action_cancel">Cancel</string>
@@ -93,9 +100,17 @@
     <string name="action_add_item">Add item</string>
     <string name="action_remove_item">Remove item</string>
     <string name="list_progress_format">%1$d/%2$d done</string>
+    <string name="list_complete">Complete</string>
+    <string name="action_mark_all_complete">Mark all complete</string>
+    <string name="action_mark_all_incomplete">Mark all incomplete</string>
     <string name="list_item_quantity_format">— %1$s</string>
     <string name="action_add_quantity">+ qty</string>
     <string name="cd_edit_quantity">Edit quantity</string>
+
+    <!-- Voice input. Dictation goes through the system speech recognizer, so there is no
+         microphone permission and no permission-denied string to write. -->
+    <string name="cd_voice_input">Speak instead of typing</string>
+    <string name="voice_input_unavailable">No voice input is available on this device.</string>
 
     <!-- Empty states -->
     <string name="empty_title">No tasks yet</string>

@@ -76,6 +76,19 @@ interface TaskListDao {
     suspend fun setItemChecked(itemId: Long, checked: Boolean): Int
 
     /**
+     * Checks or unchecks *every* item belonging to list [listId] in one statement, rather than
+     * the caller looping over [setItemChecked] - one write means observers of
+     * [observeTaskLists] see a single change instead of one per item.
+     *
+     * Scoped by `listId`, so items of other lists are never touched. A list with no items (or
+     * an id that does not exist) simply updates nothing.
+     *
+     * @return the number of rows changed: the list's item count, or `0` when it has none.
+     */
+    @Query("UPDATE task_list_items SET isChecked = :checked WHERE listId = :listId")
+    suspend fun setAllItemsChecked(listId: Long, checked: Boolean): Int
+
+    /**
      * Sets or clears the quantity on a single item, touching only that column - same pattern
      * as [updateReminder] / [TaskDao.updateReminder].
      *

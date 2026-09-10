@@ -20,10 +20,18 @@ val NeonPurple = Color(0xFFA855F7)
 val NeonPurpleLight = Color(0xFFC084FC)
 val NeonPurpleDeep = Color(0xFF7C3AED)
 
-// Task card gradient
+// Task card gradient (the app-purple card gradient from the mockup). Still used by the
+// FAB and the avatar; feed cards no longer flood themselves with a category gradient.
 val TaskGradientStart = Color(0xFFA020F0)
 val TaskGradientMid = Color(0xFF9526E4)
 val TaskGradientEnd = Color(0xFF8B1FD9)
+
+// Feed card surface. Cards are dark navy surfaces that carry their category colour as an
+// accent (spine + glow + watermark) rather than as a full-bleed gradient — the old
+// saturated two-stop fill read as "blunt". Because the surface is always dark, card text
+// is always white and there is no per-category contrast problem to solve.
+val CardSurfaceTop = Color(0xFF262450)
+val CardSurfaceBottom = Color(0xFF1B1A38)
 
 // Text
 val TextPrimary = Color(0xFFFFFFFF)
@@ -58,7 +66,11 @@ val ProgressCardBrush: Brush
         colors = listOf(SurfaceProgressTop, SurfaceElevated, SurfaceProgressBottom),
     )
 
-/** `linear-gradient(145deg, ...)` of a task card. */
+/**
+ * The mockup's `linear-gradient(145deg, ...)` task-card fill. Feed cards no longer use it
+ * (they are dark surfaces with a category accent — see `CategoryAccentCard`); kept as the
+ * app-purple card gradient token.
+ */
 val TaskCardBrush: Brush
     get() = Brush.linearGradient(
         colors = listOf(TaskGradientStart, TaskGradientMid, TaskGradientEnd),

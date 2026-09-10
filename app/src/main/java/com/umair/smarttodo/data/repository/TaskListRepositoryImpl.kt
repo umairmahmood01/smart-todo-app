@@ -105,6 +105,16 @@ class TaskListRepositoryImpl @Inject constructor(
     }
 
     /**
+     * Checks or unchecks every item in list [listId] with one DAO update, per the
+     * [TaskListRepository.setAllItemsChecked] contract - never a write per item, so observers
+     * of [observeTaskLists] see a single emission. A list with no items updates no rows, which
+     * is the intended no-op.
+     */
+    override suspend fun setAllItemsChecked(listId: Long, checked: Boolean) {
+        withContext(ioDispatcher) { dao.setAllItemsChecked(listId, checked) }
+    }
+
+    /**
      * Sets or clears the quantity on item [itemId]. [listId] is accepted for interface
      * symmetry with the rest of this repository's item mutations; the DAO update is already
      * scoped by item id alone, so no extra list-ownership check is performed here.

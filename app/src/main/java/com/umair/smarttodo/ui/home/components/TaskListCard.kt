@@ -2,24 +2,25 @@ package com.umair.smarttodo.ui.home.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.DoneAll
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.NotificationsNone
+import androidx.compose.material.icons.rounded.RemoveDone
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -35,161 +36,153 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.umair.smarttodo.R
 import com.umair.smarttodo.domain.TaskList
 import com.umair.smarttodo.ui.home.checkedCount
-import com.umair.smarttodo.ui.theme.SmartTodoDimens
+import com.umair.smarttodo.ui.home.isFullyChecked
+import com.umair.smarttodo.ui.theme.StatusDone
+import com.umair.smarttodo.ui.theme.TextPrimary
 
 /**
- * Feed card for a TaskList: same card language as TaskCard (category gradient, rounded
- * corners) but shows the list title, "x/y done" progress computed from TaskList.items
- * (never stored), and a preview of the first few item texts. Tapping the card opens
- * the full checklist detail; the overflow menu offers share, reminder and delete.
+ * Feed card for a TaskList. Same shell as [TaskCard] - dark navy surface, category colour
+ * as spine, glow and watermark - so tasks and lists read as one family, with the list
+ * specifics layered on: the title, a slim accent-filled progress rail, "x/y done"
+ * computed from [TaskList.items] (never stored), and a preview of the first few items.
+ *
+ * Tapping the card opens the full checklist detail. The overflow menu offers the same
+ * "mark all complete" bulk action as the detail sheet, plus share, reminder and delete.
+ * A list has no status column in the database: being complete is derived from the items,
+ * so [onSetAllItemsChecked] is the only way to make a list complete or bring it back.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TaskListCard(
     taskList: TaskList,
     onOpen: (TaskList) -> Unit,
     onDelete: (TaskList) -> Unit,
     onSetReminder: (TaskList, Long?) -> Unit,
+    onSetAllItemsChecked: (listId: Long, checked: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val visual = taskList.category.visual()
-    val onCard = visual.contentColor
-    val onCardScrim = onCard.copy(alpha = 0.20f)
-    val onCardBorder = onCard.copy(alpha = 0.18f)
-    val onCardMuted = onCard.copy(alpha = 0.76f)
-    val shape = RoundedCornerShape(SmartTodoDimens.TaskCardRadius)
     val context = LocalContext.current
+    val complete = taskList.isFullyChecked
+    val fraction = if (taskList.items.isEmpty()) {
+        0f
+    } else {
+        taskList.checkedCount.toFloat() / taskList.items.size
+    }
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(visual.brush)
-            .clickable { onOpen(taskList) }
-            .drawWithCache {
-                val brush = Brush.radialGradient(
-                    colors = listOf(onCard.copy(alpha = 0.16f), Color.Transparent),
-                    center = Offset(size.width - 40.dp.toPx(), -20.dp.toPx()),
-                    radius = 110.dp.toPx(),
-                )
-                onDrawBehind { drawRect(brush) }
-            },
+    CategoryAccentCard(
+        accent = visual.accent,
+        watermarkEmoji = visual.emoji,
+        onClick = { onOpen(taskList) },
+        modifier = modifier,
     ) {
-        Column(
-            modifier = Modifier.padding(
-                horizontal = SmartTodoDimens.TaskCardPaddingHorizontal,
-                vertical = SmartTodoDimens.TaskCardPaddingVertical,
+        Row(verticalAlignment = Alignment.Top) {
+            Column(modifier = Modifier.weight(1f)) {
+                if (taskList.reminderAt != null) {
+                    Box(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(CardScrim)
+                            .border(width = 1.dp, color = CardHairline, shape = CircleShape)
+                            .padding(6.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.NotificationsActive,
+                            contentDescription = stringResource(R.string.cd_reminder_active),
+                            tint = TextPrimary,
+                            modifier = Modifier.size(11.dp),
+                        )
+                    }
+                    Spacer(Modifier.height(9.dp))
+                }
+                Text(
+                    text = taskList.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = TextPrimary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Box {
+                var expanded by remember { mutableStateOf(false) }
+                IconButton(onClick = { expanded = true }, modifier = Modifier.size(26.dp)) {
+                    Icon(
+                        imageVector = Icons.Rounded.MoreVert,
+                        contentDescription = stringResource(R.string.cd_task_options),
+                        tint = CardTextFaint,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                TaskListOverflowMenu(
+                    expanded = expanded,
+                    onDismiss = { expanded = false },
+                    taskList = taskList,
+                    onDelete = onDelete,
+                    onSetReminder = onSetReminder,
+                    onSetAllItemsChecked = onSetAllItemsChecked,
+                    onShare = { context.shareAsPlainText(taskList.toShareText()) },
+                )
+            }
+        }
+
+        Spacer(Modifier.height(11.dp))
+
+        CardProgressRail(fraction = fraction, accent = visual.accent)
+
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            text = stringResource(
+                R.string.list_progress_format,
+                taskList.checkedCount,
+                taskList.items.size,
             ),
+            style = MaterialTheme.typography.labelMedium,
+            color = CardTextFaint,
+        )
+
+        if (taskList.items.isNotEmpty()) {
+            Spacer(Modifier.height(5.dp))
+            Text(
+                text = taskList.items.take(3).joinToString(separator = ", ") { it.text },
+                style = MaterialTheme.typography.bodySmall,
+                color = CardTextMuted,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
-            Row(verticalAlignment = Alignment.Top) {
-                Column(modifier = Modifier.weight(1f)) {
-                    if (taskList.reminderAt != null) {
+            CardPill(
+                text = taskList.category.label,
+                leading = { Text(text = visual.emoji, style = MaterialTheme.typography.labelMedium) },
+            )
+            if (complete) {
+                // A list has no stored status, so this pill is the only place its derived
+                // completeness shows up on the card itself.
+                CardPill(
+                    text = stringResource(R.string.list_complete),
+                    leading = {
                         Box(
                             modifier = Modifier
+                                .size(8.dp)
                                 .clip(CircleShape)
-                                .background(onCardScrim)
-                                .border(width = 1.dp, color = onCardBorder, shape = CircleShape)
-                                .padding(6.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.NotificationsActive,
-                                contentDescription = stringResource(R.string.cd_reminder_active),
-                                tint = onCard,
-                                modifier = Modifier.size(11.dp),
-                            )
-                        }
-                        Spacer(Modifier.height(8.dp))
-                    }
-                    Text(
-                        text = taskList.title,
-                        style = MaterialTheme.typography.titleLarge,
-                        color = onCard,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Spacer(Modifier.width(10.dp))
-                Box {
-                    var expanded by remember { mutableStateOf(false) }
-                    IconButton(onClick = { expanded = true }, modifier = Modifier.size(26.dp)) {
-                        Icon(
-                            imageVector = Icons.Rounded.MoreVert,
-                            contentDescription = stringResource(R.string.cd_task_options),
-                            tint = onCardMuted,
-                            modifier = Modifier.size(18.dp),
+                                .background(StatusDone),
                         )
-                    }
-                    TaskListOverflowMenu(
-                        expanded = expanded,
-                        onDismiss = { expanded = false },
-                        taskList = taskList,
-                        onDelete = onDelete,
-                        onSetReminder = onSetReminder,
-                        onShare = { context.shareAsPlainText(taskList.toShareText()) },
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            Row(verticalAlignment = Alignment.Top) {
-                Box(
-                    modifier = Modifier
-                        .size(SmartTodoDimens.TaskTileSize)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(onCardScrim)
-                        .border(width = 1.dp, color = onCardBorder, shape = RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(text = visual.emoji, fontSize = 18.sp)
-                }
-                Spacer(Modifier.width(11.dp))
-                Column {
-                    Text(
-                        text = stringResource(
-                            R.string.list_progress_format,
-                            taskList.checkedCount,
-                            taskList.items.size,
-                        ),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = onCard,
-                    )
-                    if (taskList.items.isNotEmpty()) {
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = taskList.items.take(3).joinToString(separator = ", ") { it.text },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = onCardMuted,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = visual.emoji + "  " + taskList.category.label,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = onCard,
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(onCardScrim)
-                        .border(width = 1.dp, color = onCardBorder, shape = CircleShape)
-                        .padding(horizontal = 11.dp, vertical = 5.dp),
+                    },
                 )
             }
         }
@@ -203,12 +196,25 @@ private fun TaskListOverflowMenu(
     taskList: TaskList,
     onDelete: (TaskList) -> Unit,
     onSetReminder: (TaskList, Long?) -> Unit,
+    onSetAllItemsChecked: (listId: Long, checked: Boolean) -> Unit,
     onShare: () -> Unit,
 ) {
     var showReminderDialog by remember { mutableStateOf(false) }
     val permissionState = rememberReminderPermissionState()
 
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        // Only offered for a list that has items: bulk-checking an empty list is a no-op
+        // by contract, and an empty list is never "complete" under the derived rule, so
+        // the item would be a dead button.
+        if (taskList.items.isNotEmpty()) {
+            MarkAllItemsMenuItem(
+                complete = taskList.isFullyChecked,
+                onClick = {
+                    onDismiss()
+                    onSetAllItemsChecked(taskList.id, !taskList.isFullyChecked)
+                },
+            )
+        }
         DropdownMenuItem(
             text = {
                 Text(
@@ -291,6 +297,44 @@ private fun TaskListOverflowMenu(
         onPicked = { millis ->
             onSetReminder(taskList, millis)
             showReminderDialog = false
+        },
+    )
+}
+
+/**
+ * The bulk check/uncheck action as an overflow-menu item. The detail sheet offers the same
+ * action as a full-width button instead, since that is where a user goes looking for it;
+ * this is the quick route from the feed, without opening the list at all.
+ *
+ * When the list is already fully checked the control flips to its inverse rather than
+ * sitting there as a no-op: tapping "Mark all complete" on an already-complete list would
+ * do nothing visible, which reads as a broken button. [complete] is the current state of
+ * the list, and the action always sets the opposite.
+ */
+@Composable
+private fun MarkAllItemsMenuItem(
+    complete: Boolean,
+    onClick: () -> Unit,
+) {
+    DropdownMenuItem(
+        text = {
+            Text(
+                stringResource(
+                    if (complete) {
+                        R.string.action_mark_all_incomplete
+                    } else {
+                        R.string.action_mark_all_complete
+                    },
+                ),
+            )
+        },
+        onClick = onClick,
+        leadingIcon = {
+            Icon(
+                imageVector = if (complete) Icons.Rounded.RemoveDone else Icons.Rounded.DoneAll,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
         },
     )
 }

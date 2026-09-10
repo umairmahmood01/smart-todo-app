@@ -31,6 +31,23 @@ interface TaskListRepository {
     suspend fun setItemChecked(listId: Long, itemId: Long, checked: Boolean)
 
     /**
+     * Sets the checked state of *every* item in list [listId] to [checked] in one
+     * operation, instead of the caller looping over [setItemChecked].
+     *
+     * `checked = true` marks the whole list complete; `checked = false` un-completes it by
+     * clearing every checkbox. Both directions are supported — this is not a one-way
+     * "complete" action.
+     *
+     * A list with no items is a valid target and is a no-op, not an error. Note that an
+     * empty list is *not* considered complete under the derived-completion rule ("every
+     * item is checked"), so bulk-checking an empty list correctly leaves it not-complete.
+     *
+     * Implementations must perform this as a single bulk database update that emits one
+     * change to observers, not one write per item.
+     */
+    suspend fun setAllItemsChecked(listId: Long, checked: Boolean)
+
+    /**
      * Sets or clears the quantity on item [itemId] within list [listId]. Passing `null`
      * clears the quantity.
      */

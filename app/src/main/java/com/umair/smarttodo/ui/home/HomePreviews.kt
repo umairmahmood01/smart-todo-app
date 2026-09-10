@@ -16,6 +16,7 @@ import com.umair.smarttodo.ui.home.components.NoResultsState
 import com.umair.smarttodo.ui.home.components.ProgressCard
 import com.umair.smarttodo.ui.home.components.StatusTrackerRow
 import com.umair.smarttodo.ui.home.components.TaskCard
+import com.umair.smarttodo.ui.home.components.TaskListCard
 import com.umair.smarttodo.ui.home.components.TaskSearchBar
 import com.umair.smarttodo.ui.theme.AppBackground
 import com.umair.smarttodo.ui.theme.SmartTodoDimens
@@ -63,6 +64,7 @@ private fun HomeScreenPreview() {
             onAddListItem = { _, _, _ -> },
             onRemoveListItem = { _, _ -> },
             onSetItemQuantity = { _, _, _ -> },
+            onSetAllItemsChecked = { _, _ -> },
             onDeleteList = {},
             onSetListReminder = { _, _ -> },
         )
@@ -93,6 +95,7 @@ private fun HomeScreenEmptyPreview() {
             onAddListItem = { _, _, _ -> },
             onRemoveListItem = { _, _ -> },
             onSetItemQuantity = { _, _, _ -> },
+            onSetAllItemsChecked = { _, _ -> },
             onDeleteList = {},
             onSetListReminder = { _, _ -> },
         )
@@ -123,6 +126,7 @@ private fun HomeScreenNoResultsPreview() {
             onAddListItem = { _, _, _ -> },
             onRemoveListItem = { _, _ -> },
             onSetItemQuantity = { _, _, _ -> },
+            onSetAllItemsChecked = { _, _ -> },
             onDeleteList = {},
             onSetListReminder = { _, _ -> },
         )
@@ -229,6 +233,22 @@ private fun TaskCardPreview() {
                 onDelete = {},
                 onSetReminder = { _, _ -> },
                 onEdit = {},
+            )
+        }
+    }
+}
+
+@Preview(name = "Task list cards", widthDp = PhoneWidth)
+@Composable
+private fun TaskListCardPreview() {
+    PreviewSurface {
+        PreviewData.taskLists.forEach { taskList ->
+            TaskListCard(
+                taskList = taskList,
+                onOpen = {},
+                onDelete = {},
+                onSetReminder = { _, _ -> },
+                onSetAllItemsChecked = { _, _ -> },
             )
         }
     }

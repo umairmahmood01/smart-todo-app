@@ -8,12 +8,17 @@ import com.umair.smarttodo.domain.TaskStatus
 /**
  * Everything the home screen needs to render, and nothing else.
  *
- * [feedItems] is the fully filtered + sorted mixed feed of tasks and task lists.
+ * [feedItems] is the fully filtered + sorted mixed feed of tasks and task lists. With no
+ * status pill selected it deliberately leaves out finished work — done tasks and fully
+ * checked lists — which live behind the "Done" pill.
+ *
  * [statusCounts] / [categoryCounts] / [completionPercent] are deliberately scoped to the
  * *search query only* (they ignore the category and status chips) so that the tracker
  * pills and category chips keep showing meaningful totals while the user is filtering by
- * them. [statusCounts] and [completionPercent] only ever reflect tasks — task lists have
- * no [TaskStatus] of their own.
+ * them. They also ignore the "hide finished work" rule that [feedItems] applies: a done
+ * task still counts, which is exactly why the progress ring can read "3 of 4" while the
+ * feed shows one card. [statusCounts] and [completionPercent] only ever reflect tasks —
+ * task lists have no [TaskStatus] of their own.
  */
 @Immutable
 data class HomeUiState(

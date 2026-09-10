@@ -12,6 +12,21 @@
          not AlarmManager, so no SCHEDULE_EXACT_ALARM is needed). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Voice input. Note what is NOT here: RECORD_AUDIO. Dictation is done by launching
+         the system speech recognizer with an intent, so the recording happens in the
+         system UI and this app never touches the microphone itself - see VoiceInput.kt.
+         This <queries> block is a package-visibility declaration, not a permission: from
+         Android 11 on, queryIntentActivities() cannot see the recognizer app without it,
+         and the mic button would hide itself on every modern device. -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+
     <application
         android:name=".SmartTodoApplication"
         android:allowBackup="true"

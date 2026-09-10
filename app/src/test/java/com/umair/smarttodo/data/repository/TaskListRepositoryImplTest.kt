@@ -172,6 +172,122 @@ class TaskListRepositoryImplTest {
         assertEquals(true, dao.currentItems.single().isChecked)
     }
 
+    // --- setAllItemsChecked --------------------------------------------------------------
+
+    @Test
+    fun `setAllItemsChecked with true checks every item in the list`() = runTest {
+        val listId = repository.createTaskList(
+            "Grocery list",
+            Category.SHOPPING,
+            listOf(TaskListItem(text = "milk"), TaskListItem(text = "eggs"), TaskListItem(text = "bread")),
+        )
+
+        repository.setAllItemsChecked(listId, true)
+
+        assertEquals(3, dao.currentItems.size)
+        assertTrue(dao.currentItems.all { it.isChecked })
+    }
+
+    @Test
+    fun `setAllItemsChecked with false clears every checkbox`() = runTest {
+        val listId = repository.createTaskList(
+            "Grocery list",
+            Category.SHOPPING,
+            listOf(TaskListItem(text = "milk"), TaskListItem(text = "eggs")),
+        )
+        repository.setAllItemsChecked(listId, true)
+
+        repository.setAllItemsChecked(listId, false)
+
+        assertTrue(dao.currentItems.none { it.isChecked })
+    }
+
+    @Test
+    fun `setAllItemsChecked is one bulk write, not one write per item`() = runTest {
+        val listId = repository.createTaskList(
+            "Grocery list",
+            Category.SHOPPING,
+            listOf(TaskListItem(text = "milk"), TaskListItem(text = "eggs"), TaskListItem(text = "bread")),
+        )
+
+        repository.setAllItemsChecked(listId, true)
+
+        assertEquals(1, dao.setAllItemsCheckedCount)
+        assertEquals(0, dao.setItemCheckedCount)
+    }
+
+    @Test
+    fun `setAllItemsChecked on an already fully checked list is idempotent`() = runTest {
+        val listId = repository.createTaskList(
+            "Grocery list",
+            Category.SHOPPING,
+            listOf(TaskListItem(text = "milk"), TaskListItem(text = "eggs")),
+        )
+        repository.setAllItemsChecked(listId, true)
+
+        repository.setAllItemsChecked(listId, true)
+
+        assertEquals(listOf("milk", "eggs"), dao.currentItems.map { it.text })
+        assertTrue(dao.currentItems.all { it.isChecked })
+    }
+
+    @Test
+    fun `setAllItemsChecked on an empty list is a no-op, not an error`() = runTest {
+        val listId = repository.createTaskList("Empty list", Category.OTHER, emptyList())
+
+        repository.setAllItemsChecked(listId, true)
+
+        assertTrue(dao.currentItems.isEmpty())
+        assertEquals(listOf("Empty list"), dao.currentLists.map { it.title })
+    }
+
+    /**
+     * Guards the DAO query's `WHERE listId = :listId` scoping: dropping that clause would
+     * silently check every item in the database, and only a second list can catch it.
+     */
+    @Test
+    fun `setAllItemsChecked leaves other lists untouched`() = runTest {
+        val target = repository.createTaskList(
+            "Grocery list",
+            Category.SHOPPING,
+            listOf(TaskListItem(text = "milk"), TaskListItem(text = "eggs")),
+        )
+        val other = repository.createTaskList(
+            "Packing list",
+            Category.PERSONAL,
+            listOf(TaskListItem(text = "passport"), TaskListItem(text = "charger")),
+        )
+
+        repository.setAllItemsChecked(target, true)
+
+        assertTrue(dao.currentItems.filter { it.listId == target }.all { it.isChecked })
+        assertTrue(dao.currentItems.filter { it.listId == other }.none { it.isChecked })
+        assertEquals(2, dao.currentItems.count { it.listId == other })
+    }
+
+    @Test
+    fun `setAllItemsChecked unchecking one list leaves another list's checks intact`() = runTest {
+        val target = repository.createTaskList(
+            "Grocery list",
+            Category.SHOPPING,
+            listOf(TaskListItem(text = "milk"), TaskListItem(text = "eggs")),
+        )
+        val other = repository.createTaskList(
+            "Packing list",
+            Category.PERSONAL,
+            listOf(TaskListItem(text = "passport"), TaskListItem(text = "charger")),
+        )
+        repository.setAllItemsChecked(target, true)
+        repository.setAllItemsChecked(other, true)
+
+        repository.setAllItemsChecked(target, false)
+
+        assertTrue(dao.currentItems.filter { it.listId == target }.none { it.isChecked })
+        assertTrue(dao.currentItems.filter { it.listId == other }.all { it.isChecked })
+    }
+
+    // --- removeItem ---------------------------------------------------------------------
+
     @Test
     fun `removeItem deletes only that item`() = runTest {
         val listId = repository.createTaskList(

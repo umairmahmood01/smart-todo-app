@@ -3,6 +3,7 @@ package com.umair.smarttodo.ui.home.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,9 +24,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.DoneAll
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.NotificationsNone
+import androidx.compose.material.icons.rounded.RemoveDone
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
@@ -58,9 +61,11 @@ import com.umair.smarttodo.domain.Category
 import com.umair.smarttodo.domain.TaskList
 import com.umair.smarttodo.domain.TaskListItem
 import com.umair.smarttodo.ui.home.checkedCount
+import com.umair.smarttodo.ui.home.isFullyChecked
 import com.umair.smarttodo.ui.theme.HairlineBorder
 import com.umair.smarttodo.ui.theme.NeonPurple
 import com.umair.smarttodo.ui.theme.SmartTodoDimens
+import com.umair.smarttodo.ui.theme.StatusDone
 import com.umair.smarttodo.ui.theme.SurfaceElevated
 import com.umair.smarttodo.ui.theme.SurfaceMuted
 import com.umair.smarttodo.ui.theme.TextMuted
@@ -72,6 +77,11 @@ import com.umair.smarttodo.ui.theme.TextPrimary
  * calls setItemChecked through onToggleItem), an add-item row, and a delete button per
  * item. The overflow menu offers share, reminder and delete for the whole list, mirroring
  * TaskListCard's card-level menu.
+ *
+ * Above the items sits the one control that has no per-item equivalent: [MarkAllItemsButton],
+ * which checks or unchecks everything at once through [onSetAllItemsChecked]. A list has
+ * no stored status, so being "done" means every item is checked — that button is how a
+ * list gets marked complete, and (once it already is) how it gets brought back.
  *
  * When [TaskList.category] is [Category.SHOPPING], each item also shows a small grocery
  * emoji (looked up from its text, purely presentational — see [groceryItemEmoji]) and its
@@ -87,12 +97,16 @@ fun TaskListDetailSheet(
     onAddItem: (text: String, quantity: String?) -> Unit,
     onRemoveItem: (TaskListItem) -> Unit,
     onSetItemQuantity: (TaskListItem, String?) -> Unit,
+    onSetAllItemsChecked: (checked: Boolean) -> Unit,
     onSetReminder: (Long?) -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val isShoppingList = taskList.category == Category.SHOPPING
+    // A task list has no status column: "complete" is derived from the items and nothing
+    // else, so this is recomputed from the list every recomposition rather than stored.
+    val isComplete = taskList.isFullyChecked
     var newItemText by remember { mutableStateOf("") }
     var newItemQuantity by remember { mutableStateOf("") }
     var menuExpanded by remember { mutableStateOf(false) }
@@ -132,7 +146,7 @@ fun TaskListDetailSheet(
                             taskList.items.size,
                         ),
                         style = MaterialTheme.typography.labelLarge,
-                        color = TextMuted,
+                        color = if (isComplete) StatusDone else TextMuted,
                     )
                 }
                 Box {
@@ -203,6 +217,14 @@ fun TaskListDetailSheet(
                         )
                     }
                 }
+            }
+
+            if (taskList.items.isNotEmpty()) {
+                Spacer(Modifier.height(14.dp))
+                MarkAllItemsButton(
+                    complete = isComplete,
+                    onClick = { onSetAllItemsChecked(!isComplete) },
+                )
             }
 
             Spacer(Modifier.height(16.dp))
@@ -412,6 +434,13 @@ private fun AddChecklistItemRow(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+        // Dictate the next item instead of typing it. Appends, so speaking twice before
+        // tapping Add builds one longer item rather than throwing the first half away.
+        VoiceInputButton(
+            onTextRecognized = { spoken -> onValueChange(appendSpokenText(value, spoken)) },
+            buttonSize = 34.dp,
+            iconSize = 17.dp,
+        )
         if (showQuantity) {
             Spacer(Modifier.width(6.dp))
             Box(
@@ -454,5 +483,60 @@ private fun AddChecklistItemRow(
                 tint = NeonPurple,
             )
         }
+    }
+}
+
+/**
+ * The explicit "there is no other way to do this" control for list completion.
+ *
+ * A [TaskList] has no status of its own; it is complete when every item is checked. That
+ * left the user with no single action to declare a list done, only N taps on N checkboxes
+ * - which is what this fixes, via [TaskListRepository.setAllItemsChecked] (one bulk write,
+ * one emission, not a loop).
+ *
+ * When the list is already complete the button flips to its inverse rather than staying
+ * as a dead "Mark all complete" that visibly does nothing. Both directions are supported
+ * by the repository contract, so this is a genuine toggle, not a one-way trip.
+ */
+@Composable
+private fun MarkAllItemsButton(
+    complete: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val accent = if (complete) TextMuted else StatusDone
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(SmartTodoDimens.SurfaceRadius))
+            .background(SurfaceMuted)
+            .border(
+                width = 1.dp,
+                color = accent.copy(alpha = 0.45f),
+                shape = RoundedCornerShape(SmartTodoDimens.SurfaceRadius),
+            )
+            .clickable(onClick = onClick)
+            .padding(vertical = 11.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = if (complete) Icons.Rounded.RemoveDone else Icons.Rounded.DoneAll,
+            contentDescription = null,
+            tint = accent,
+            modifier = Modifier.size(17.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = stringResource(
+                if (complete) {
+                    R.string.action_mark_all_incomplete
+                } else {
+                    R.string.action_mark_all_complete
+                },
+            ),
+            style = MaterialTheme.typography.labelLarge,
+            color = accent,
+        )
     }
 }
