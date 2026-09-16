@@ -11,9 +11,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.umair.smarttodo.ui.home.components.CategoryChipRow
 import com.umair.smarttodo.ui.home.components.EmptyTasksState
-import com.umair.smarttodo.ui.home.components.HomeHeader
 import com.umair.smarttodo.ui.home.components.NoResultsState
-import com.umair.smarttodo.ui.home.components.ProgressCard
 import com.umair.smarttodo.ui.home.components.StatusTrackerRow
 import com.umair.smarttodo.ui.home.components.TaskCard
 import com.umair.smarttodo.ui.home.components.TaskListCard
@@ -144,26 +142,6 @@ private fun HomeRouteWithFakeRepositoryPreview() {
                 taskCategorizer = PreviewTaskCategorizer(),
             ),
         )
-    }
-}
-
-@Preview(name = "Header", widthDp = PhoneWidth)
-@Composable
-private fun HomeHeaderPreview() {
-    PreviewSurface {
-        HomeHeader(hourOfDay = 8)
-        HomeHeader(hourOfDay = 14)
-        HomeHeader(hourOfDay = 20)
-    }
-}
-
-@Preview(name = "Progress card", widthDp = PhoneWidth)
-@Composable
-private fun ProgressCardPreview() {
-    PreviewSurface {
-        ProgressCard(percent = 20, doneCount = 1, totalCount = 5)
-        ProgressCard(percent = 0, doneCount = 0, totalCount = 0)
-        ProgressCard(percent = 100, doneCount = 4, totalCount = 4)
     }
 }
 

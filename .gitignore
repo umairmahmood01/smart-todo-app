@@ -6,6 +6,11 @@
 *.keystore
 keystore.properties
 local.properties
+#
+# NOTE: app/debug.p12 is deliberately NOT ignored. It is the shared debug signing key,
+# committed so every build installs over the previous one instead of forcing an uninstall
+# that would wipe the database (see README, "Debug signing key"). Do not add a *.p12 rule
+# here without a !app/debug.p12 negation - and never commit a release keystore.
 
 # --- Android / Gradle ---
 *.iml

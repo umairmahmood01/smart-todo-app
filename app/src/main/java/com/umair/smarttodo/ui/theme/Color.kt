@@ -60,12 +60,6 @@ val AmbientTopGlow = Color(0x47A855F7)
 /** Ambient glow used behind the bottom-right of the screen. */
 val AmbientBottomGlow = Color(0x38604FD6)
 
-/** `linear-gradient(140deg, ...)` of the progress card. */
-val ProgressCardBrush: Brush
-    get() = Brush.linearGradient(
-        colors = listOf(SurfaceProgressTop, SurfaceElevated, SurfaceProgressBottom),
-    )
-
 /**
  * The mockup's `linear-gradient(145deg, ...)` task-card fill. Feed cards no longer use it
  * (they are dark surfaces with a category accent — see `CategoryAccentCard`); kept as the

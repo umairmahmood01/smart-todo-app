@@ -53,9 +53,7 @@ import com.umair.smarttodo.ui.home.components.AddTaskListSheet
 import com.umair.smarttodo.ui.home.components.AddTaskSheet
 import com.umair.smarttodo.ui.home.components.CategoryChipRow
 import com.umair.smarttodo.ui.home.components.EmptyTasksState
-import com.umair.smarttodo.ui.home.components.HomeHeader
 import com.umair.smarttodo.ui.home.components.NoResultsState
-import com.umair.smarttodo.ui.home.components.ProgressCard
 import com.umair.smarttodo.ui.home.components.StatusTrackerRow
 import com.umair.smarttodo.ui.home.components.TaskCard
 import com.umair.smarttodo.ui.home.components.TaskListCard
@@ -154,14 +152,8 @@ fun HomeScreen(
         ) {
             item(key = "header") {
                 Column(modifier = Modifier.padding(horizontal = screenPadding)) {
-                    HomeHeader()
-                    Spacer(Modifier.height(20.dp))
-                    ProgressCard(
-                        percent = state.completionPercent,
-                        doneCount = state.doneCount,
-                        totalCount = state.totalCount,
-                    )
-                    Spacer(Modifier.height(16.dp))
+                    // Breathing room under the status bar, now that the greeting is gone.
+                    Spacer(Modifier.height(12.dp))
                     StatusTrackerRow(
                         counts = state.statusCounts,
                         selectedStatuses = state.selectedStatuses,

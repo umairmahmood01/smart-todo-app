@@ -12,13 +12,13 @@ import com.umair.smarttodo.domain.TaskStatus
  * status pill selected it deliberately leaves out finished work — done tasks and fully
  * checked lists — which live behind the "Done" pill.
  *
- * [statusCounts] / [categoryCounts] / [completionPercent] are deliberately scoped to the
- * *search query only* (they ignore the category and status chips) so that the tracker
- * pills and category chips keep showing meaningful totals while the user is filtering by
- * them. They also ignore the "hide finished work" rule that [feedItems] applies: a done
- * task still counts, which is exactly why the progress ring can read "3 of 4" while the
- * feed shows one card. [statusCounts] and [completionPercent] only ever reflect tasks —
- * task lists have no [TaskStatus] of their own.
+ * [statusCounts] / [categoryCounts] are deliberately scoped to the *search query only*
+ * (they ignore the category and status chips) so that the tracker pills and category
+ * chips keep showing meaningful totals while the user is filtering by them. They also
+ * ignore the "hide finished work" rule that [feedItems] applies: a done task still
+ * counts, which is exactly why the "Done" pill can show a non-zero count while the feed
+ * hides those tasks. [statusCounts] only ever reflects tasks — task lists have no
+ * [TaskStatus] of their own.
  */
 @Immutable
 data class HomeUiState(
@@ -29,7 +29,6 @@ data class HomeUiState(
     val sort: TaskSort = TaskSort.CREATED_DESC,
     val statusCounts: Map<TaskStatus, Int> = emptyMap(),
     val categoryCounts: Map<Category, Int> = emptyMap(),
-    val completionPercent: Int = 0,
     val isLoading: Boolean = true,
 ) {
     /** Total number of tasks in scope (all statuses). */

@@ -7,25 +7,6 @@
     <string name="reminder_channel_description">Notifications for the reminders you set on tasks and lists.</string>
     <string name="reminder_notification_text">Reminder</string>
 
-    <!-- Header -->
-    <string name="profile_name">Umair</string>
-    <string name="greeting_morning">👋 Good morning, %1$s</string>
-    <string name="greeting_afternoon">👋 Good afternoon, %1$s</string>
-    <string name="greeting_evening">👋 Good evening, %1$s</string>
-    <string name="tagline">Productivity is the key to success. 🔑</string>
-    <string name="avatar_emoji">😎</string>
-    <string name="cd_avatar">Your profile</string>
-
-    <!-- Progress card -->
-    <string name="progress_headline">You\'ve completed %1$d out of %2$d tasks.</string>
-    <string name="progress_percent">%1$d%%</string>
-    <string name="progress_sub_empty">Add your first task to get going.</string>
-    <string name="progress_sub_starting">You\'re just getting started.</string>
-    <string name="progress_sub_halfway">Nice pace — keep the streak alive.</string>
-    <string name="progress_sub_almost">Almost there. Finish strong.</string>
-    <string name="progress_sub_complete">All done. Enjoy the rest of your day.</string>
-    <string name="cd_progress_ring">%1$d percent of tasks completed</string>
-
     <!-- Status tracker -->
     <string name="status_todo_short">To-Do</string>
     <string name="status_in_progress_short">Progress</string>

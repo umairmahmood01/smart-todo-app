@@ -71,9 +71,36 @@ android {
         )
     }
 
+    // --- Debug signing ---------------------------------------------------------------
+    //
+    // `app/debug.p12` is committed to this repository on purpose. Without it, every machine
+    // and every CI run generates its own random debug keystore, so each APK carries a
+    // different signing certificate. Android treats a differently-signed APK as a different
+    // app and rejects the install with INSTALL_FAILED_UPDATE_INCOMPATIBLE, forcing an
+    // uninstall - which deletes the Room database along with it. A fixed keystore means every
+    // build, local or CI, is install-compatible with the last one, so updates preserve data.
+    //
+    // The tradeoff, stated plainly: this is a DEBUG key with the conventional password
+    // `android`. It protects nothing, and anyone with repo access can build an APK that
+    // Android considers the same app. That is accepted for a private repo and a sideloaded
+    // personal build. It must never sign anything published to Play; publishing requires a
+    // real release keystore held in GitHub Secrets, which is out of scope here.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.p12")
+            storePassword = "android"
+            keyAlias = "smarttodo"
+            keyPassword = "android"
+            storeType = "PKCS12"
+        }
+    }
+
     buildTypes {
         debug {
             isMinifyEnabled = false
+            // AGP already defaults the debug build type to the debug signing config; stated
+            // explicitly so the guarantee is visible here and not inherited silently.
+            signingConfig = signingConfigs.getByName("debug")
         }
         release {
             isMinifyEnabled = true

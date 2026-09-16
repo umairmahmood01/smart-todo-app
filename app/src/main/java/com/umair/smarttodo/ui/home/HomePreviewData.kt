@@ -94,10 +94,6 @@ internal object PreviewData {
         categoryCounts = (tasks.map { it.category } + taskLists.map { it.category })
             .groupingBy { it }
             .eachCount(),
-        completionPercent = completionPercent(
-            done = tasks.count { it.status == TaskStatus.DONE },
-            total = tasks.size,
-        ),
         isLoading = false,
     )
 
@@ -108,7 +104,6 @@ internal object PreviewData {
         selectedCategories = setOf(Category.CODING),
         statusCounts = tasks.groupingBy { it.status }.eachCount(),
         categoryCounts = tasks.groupingBy { it.category }.eachCount(),
-        completionPercent = 20,
         isLoading = false,
     )
 }

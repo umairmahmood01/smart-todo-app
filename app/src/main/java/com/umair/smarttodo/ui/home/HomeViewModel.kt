@@ -79,10 +79,10 @@ class HomeViewModel @Inject constructor(
                     // showing real totals while the user filters by them.
                     //
                     // DO NOT narrow this call. `statuses = emptySet()` here means "no
-                    // status filter at all", which is what makes the tracker pill counts,
-                    // the "x of y tasks" line and the progress ring keep counting DONE
-                    // tasks even though the feed above hides them. Passing the feed
-                    // statuses here instead would make the ring read 0 of 4 forever.
+                    // status filter at all", which is what makes the tracker pill counts
+                    // keep counting DONE tasks even though the feed above hides them.
+                    // Passing the feed statuses here instead would make the "Done" pill
+                    // read 0 forever.
                     repository.observeTasks(
                         query = query,
                         categories = emptySet(),
@@ -132,10 +132,6 @@ class HomeViewModel @Inject constructor(
                 sort = filters.sort,
                 statusCounts = statusCounts,
                 categoryCounts = categoryCounts,
-                completionPercent = completionPercent(
-                    done = statusCounts[TaskStatus.DONE] ?: 0,
-                    total = snapshot.scopeTasks.size,
-                ),
                 isLoading = false,
             )
         }.stateIn(
@@ -358,10 +354,6 @@ private fun TaskStatus.next(): TaskStatus = when (this) {
     TaskStatus.IN_PROGRESS -> TaskStatus.DONE
     TaskStatus.DONE -> TaskStatus.TODO
 }
-
-/** Guarded percentage: an empty list is 0 percent, never a divide-by-zero. */
-internal fun completionPercent(done: Int, total: Int): Int =
-    if (total <= 0) 0 else ((done * 100f) / total).toInt().coerceIn(0, 100)
 
 /**
  * Merges filtered tasks and lists into one feed, sorted together by createdDate. Pinned

@@ -42,3 +42,32 @@ gradle wrapper --gradle-version 8.13
 
 Or simply open the project in Android Studio, which supplies its own JDK and
 generates the wrapper on import.
+
+## Debug signing key
+
+`app/debug.p12` is a committed debug keystore (alias `smarttodo`, password
+`android`), wired into the `debug` signing config in `app/build.gradle.kts`.
+
+It exists because a signing certificate is what Android uses to decide whether
+one APK is an update of another. With no keystore in the repo, every developer
+machine and every CI run generates its own random debug key, so each build is a
+*different app* as far as Android is concerned: installing it over the previous
+one fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, and the only way through is
+to uninstall first - which deletes the Room database. Pinning the key makes
+every build, local or CI, install cleanly over the last one and keep its data.
+
+The tradeoff, stated plainly:
+
+- This is a **debug** key with the conventional password `android`. It protects
+  nothing. Anyone with access to this repo can build an APK that Android
+  considers the same app as yours.
+- That is an accepted tradeoff for a private repo and a sideloaded personal
+  build. It would not be acceptable for a published app.
+- It must **never** sign anything uploaded to Play. Publishing requires a real
+  release keystore kept out of the repo (GitHub Secrets / Play App Signing),
+  which is deliberately not set up here.
+
+The certificate is valid for 10000 days, so it will not expire in practice. It
+was generated with OpenSSL rather than `keytool` (no JDK on the authoring
+machine); the intermediate private-key PEM was created outside the repo and
+never committed.
