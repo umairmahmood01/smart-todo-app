@@ -27,6 +27,14 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # The action's default package list is "tools platform-tools", but
+          # Google has removed the obsolete "tools" package from the SDK
+          # repository, so the default now fails the whole job with
+          # "Failed to find package 'tools'". platform-tools is already
+          # preinstalled on the runner and the compile SDK is installed
+          # explicitly in the next step, so nothing is lost by skipping this.
+          packages: ''
 
       - name: Install compile SDK platform
         run: sdkmanager --install "platforms;android-36"
